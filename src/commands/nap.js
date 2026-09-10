@@ -1,4 +1,6 @@
 const paymentService = require('../services/paymentService');
+const topupService = require('../services/topupService');
+const userService = require('../services/userService');
 const messages = require('../utils/messages');
 const { formatPrice } = require('../utils/keyboard');
 
@@ -19,7 +21,10 @@ module.exports = (bot) => {
             return ctx.reply('❌ Số tiền tối thiểu là 10.000đ');
         }
 
+        userService.findOrCreate(ctx.from);
+
         const payment = paymentService.generatePayment(amount);
+        topupService.create(ctx.from.id, amount, payment.paymentCode);
 
         // Send QR image
         ctx.replyWithPhoto(payment.qrUrl, {
