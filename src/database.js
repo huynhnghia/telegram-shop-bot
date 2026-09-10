@@ -83,9 +83,10 @@ if (catCount.c === 0) {
 
   // Insert categories
   const insertCat = db.prepare('INSERT INTO categories (name, emoji, sort_order) VALUES (?, ?, ?)');
-  insertCat.run('Tài Khoản Telegram ', '⚡', 3);
-
+  insertCat.run('Tài Khoản Telegram ', '⚡', 1);
+insertCat.run('Tài Khoản Telegram ', '⚡', 2);
   // Insert products
+  insertCat.run('Tài Khoản Telegram ', '⚡', 3);
   const insertProd = db.prepare(`
     INSERT INTO products (category_id, name, price, emoji, promotion, contact_only)
     VALUES (?, ?, ?, ?, ?, ?)
