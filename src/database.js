@@ -70,6 +70,17 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(telegram_id),
     FOREIGN KEY (product_id) REFERENCES products(id)
   );
+
+  CREATE TABLE IF NOT EXISTS topups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id INTEGER NOT NULL,
+    amount INTEGER NOT NULL,
+    payment_code TEXT UNIQUE,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    paid_at DATETIME,
+    FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)
+  );
 `);
 
 // Safe migrations for existing databases
@@ -83,18 +94,21 @@ if (catCount.c === 0) {
 
   // Insert categories
   const insertCat = db.prepare('INSERT INTO categories (name, emoji, sort_order) VALUES (?, ?, ?)');
-  insertCat.run('Tài Khoản Telegram ', '⚡', 1);
+  insertCat.run('Tài Khoản Telegram ', '⚡', 3);
 
+  // Insert products
   const insertProd = db.prepare(`
     INSERT INTO products (category_id, name, price, emoji, promotion, contact_only)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   // ChatGPT category (id=1)
-  
+  insertProd.run(3, 'Tk Telegram', 5000000, '📦', '🎁 Mua 10 tặng 2', 0);
+  insertProd.run(3, 'tài khoản telegram', 500000, '📦', null, 0);
+
 
   // Capcut category (id=2)
-  insertProd.run(1, 'Tài Khoản Telegram ', 500000, '📦', null, 0);
+  insertProd.run(3, 'Tk tegram ', 12000, '📦', null, 0);
 
   console.log('✅ Seed data created!');
 }
