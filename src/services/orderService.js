@@ -39,6 +39,21 @@ const orderService = {
   },
 
   /**
+   * Find a PENDING order whose payment_code contains the given suffix
+   * (used because bank transfer content may mangle spaces/hyphens)
+   */
+  getPendingBySuffix(suffix) {
+    return db.prepare(`
+      SELECT o.*, p.name as product_name
+      FROM orders o
+      JOIN products p ON o.product_id = p.id
+      WHERE o.status = 'pending' AND o.payment_code LIKE ?
+      ORDER BY o.created_at DESC
+      LIMIT 1
+    `).get(`%${suffix}%`);
+  },
+
+  /**
    * Get user's pending orders
    */
   getPendingByUser(userId) {
