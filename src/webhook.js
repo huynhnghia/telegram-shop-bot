@@ -128,7 +128,7 @@ function setupWebhook(bot) {
 
     app.listen(config.WEBHOOK_PORT, () => {
         console.log(`🌐 Webhook server đang lắng nghe tại port ${config.WEBHOOK_PORT}`);
-        console.log(`🔗 SePay webhook URL: http://<your-domain>:${config.WEBHOOK_PORT}/webhook/sepay`);
+        console.log(`🔗 SePay webhook URL: https://telegram-shop-bot-696z.onrender.com:${config.WEBHOOK_PORT}/webhook/sepay`);
     });
 }
 
