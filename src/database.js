@@ -104,7 +104,6 @@ if (catCount.c === 0) {
 
   // ChatGPT category (id=1)
   insertProd.run(3, 'Tk Telegram', 5000000, '📦', '🎁 Mua 10 tặng 2', 0);
-  insertProd.run(3, 'tài khoản telegram', 500000, '📦', null, 0);
 
 
   // Capcut category (id=2)
