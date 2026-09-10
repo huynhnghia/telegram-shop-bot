@@ -83,9 +83,7 @@ if (catCount.c === 0) {
 
   // Insert categories
   const insertCat = db.prepare('INSERT INTO categories (name, emoji, sort_order) VALUES (?, ?, ?)');
-  insertCat.run('ChatGPT', '🤖', 1);
-  insertCat.run('Capcut', '🎬', 2);
-  insertCat.run('Dịch vụ nâng cấp', '⚡', 3);
+  insertCat.run('Tài Khoản Telegram ', '⚡', 3);
 
   // Insert products
   const insertProd = db.prepare(`
