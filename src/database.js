@@ -94,7 +94,7 @@ if (catCount.c === 0) {
   
 
   // Capcut category (id=2)
-  insertProd.run(1, 'Capcut Pro Team 35D bhf', 12000, '📦', null, 0);
+  insertProd.run(1, 'Tài Khoản Telegram ', 500000, '📦', null, 0);
 
   console.log('✅ Seed data created!');
 }
