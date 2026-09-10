@@ -1,7 +1,7 @@
 {
-    "name": "starizzi-shop-bot",
+    "name": "nghiadz-shopbot",
     "version": "1.0.0",
-    "description": "Telegram Shop Bot - Starizzi Shop",
+    "description": "Telegram Shop Bot - Telegram Shop",
     "main": "src/bot.js",
     "scripts": {
         "start": "node src/bot.js",
