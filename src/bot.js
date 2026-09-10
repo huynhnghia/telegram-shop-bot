@@ -58,6 +58,10 @@ bot.launch()
         // Start Google Sheet auto-sync
         const { startAutoSync } = require('./services/sheetSync');
         startAutoSync();
+
+        // Start SePay webhook server (auto-confirm payments)
+        const setupWebhook = require('./webhook');
+        setupWebhook(bot);
     })
     .catch((err) => {
         console.error('❌ Không thể khởi động bot:', err.message);
