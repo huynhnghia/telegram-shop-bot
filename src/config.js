@@ -14,7 +14,7 @@ module.exports = {
 
     BANK2: process.env.BANK2_ACCOUNT ? {
         BIN: process.env.BANK2_BIN || '970422',
-        ACCOUNT: process.env.BANK2_ACCOUNT  || '0783803044',
+        ACCOUNT: process.env.BANK2_ACCOUNT,  || '0783803044',
         ACCOUNT_NAME: process.env.BANK2_ACCOUNT_NAME || 'HUYNH NGOC NGHIA',
         NAME: process.env.BANK2_NAME || 'MB',
     } : null,
