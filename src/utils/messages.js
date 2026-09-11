@@ -62,8 +62,8 @@ const messages = {
             msg += `${i + 1})\n<code>${acc}</code>\n`;
         });
 
-        msg += `\n📖 <b>Hướng dẫn:</b> maill | passmail | passchatgpt\n` +
-            `log vào outlook.com để lấy code nha các bạn`;
+        msg += `\n📖 <b>Hướng dẫn:</b> maill | passmail | passkey\n` +
+            `. Lưu ý khi mua thành công quý khách tự lưu vào note ( ghi chú ) `;
 
         return msg;
     },
