@@ -106,7 +106,7 @@ if (catCount.c === 0) {
 
   // ChatGPT category (id=1)
   insertProd.run(1, 'Tài Khoản Telegram US', 500000, '📦', '🎁 Mua 5 tặng 1', 0);
-insertProd.run(1, 'Tài Khoản Telegram US', 500000, '📦', 0);
+
   // Capcut category (id=2)
   //insertProd.run(2, 'Capcut Pro Team 35D bhf', 12000, '📦', null, 0);
 
