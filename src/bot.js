@@ -19,7 +19,7 @@ bot.catch((err, ctx) => {
 // Register commands
 require('./commands/start')(bot);
 require('./commands/menu')(bot);
-require('./commands/product')(bot);
+require('./commands/product')(bot); // Vẫn gọi file này, nhưng bên trong sẽ đổi tên lệnh
 require('./commands/nap')(bot);
 require('./commands/checkpay')(bot);
 require('./commands/support')(bot);
@@ -31,22 +31,19 @@ require('./handlers/quantitySelect')(bot);
 require('./handlers/paymentConfirm')(bot);
 require('./handlers/adminActions')(bot);
 
-// Start webhook server FIRST — Render/Railway need to see an open port
-// almost immediately, regardless of whether Telegram polling succeeds.
+// Start webhook server FIRST
 const setupWebhook = require('./webhook');
 setupWebhook(bot);
 
-// Launch Telegram polling separately so a Telegram-side failure
-// (bad token, network issue) never takes down the whole process/port.
+// Launch Telegram polling
 if (!config.BOT_TOKEN || config.BOT_TOKEN === 'your_bot_token_here') {
-    console.error('❌ BOT_TOKEN chưa được cấu hình trong Environment Variables!');
-    console.error('💡 Bot Telegram sẽ KHÔNG nhận tin nhắn cho tới khi bạn thêm BOT_TOKEN và deploy lại.');
+    console.error('❌ BOT_TOKEN chưa được cấu hình!');
 } else {
-    // Set bot commands for menu
+    // CẬP NHẬT MENU LỆNH TẠI ĐÂY
     bot.telegram.setMyCommands([
         { command: 'start', description: '🔄 Bắt đầu / Khởi động lại' },
         { command: 'menu', description: '👤 Thông tin tài khoản' },
-        { command: 'product', description: '📦 Danh sách sản phẩm' },
+        { command: 'batdau', description: '🎲 Chơi tài xỉu' }, // <-- Đã đổi thành batdau
         { command: 'nap', description: '💰 Nạp số dư' },
         { command: 'checkpay', description: '🔍 Kiểm tra thanh toán' },
         { command: 'support', description: '🆘 Hỗ trợ' },
@@ -56,19 +53,11 @@ if (!config.BOT_TOKEN || config.BOT_TOKEN === 'your_bot_token_here') {
     bot.launch()
         .then(() => {
             console.log(`🤖 ${config.SHOP_NAME} Bot đã khởi động!`);
-            console.log(`👤 Admin ID: ${config.ADMIN_ID}`);
-            console.log(`🏦 Bank: ${config.BANK.NAME} - ${config.BANK.ACCOUNT}`);
-
-            // Start Google Sheet auto-sync
             const { startAutoSync } = require('./services/sheetSync');
             startAutoSync();
         })
         .catch((err) => {
             console.error('❌ Không thể khởi động Telegram polling:', err.message);
-            console.error('💡 Kiểm tra lại BOT_TOKEN trong Environment Variables có đúng không.');
-            // NOTE: intentionally NOT calling process.exit(1) here —
-            // the webhook server above must keep running so Render doesn't
-            // fail the whole deploy just because Telegram polling failed.
         });
 }
 
@@ -78,10 +67,7 @@ process.on('unhandledRejection', (err) => {
 });
 process.on('uncaughtException', (err) => {
     console.error('⚠️ Uncaught exception:', err.message || err);
-    if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') {
-        console.log('🔄 Network error, bot continues running...');
-        return; // Don't crash on network errors
-    }
+    if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') return;
     process.exit(1);
 });
 
