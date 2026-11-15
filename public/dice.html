@@ -89,11 +89,11 @@
         const resultBox = document.getElementById('resultBox');
         const resultText = document.getElementById('resultText');
 
-        // Lấy tham số truyền vào từ URL (kết quả đã được bot ép sẵn)
+        // Lấy tham số truyền vào từ URL (nếu có ép kết quả)
         const urlParams = new URLSearchParams(window.location.search);
         const forcedTotal = parseInt(urlParams.get('force'));
 
-        // Hiệu ứng lắc trong 2 giây
+        // Hiệu ứng lắc trong khoảng 2 giây
         let rollCount = 0;
         const rollInterval = setInterval(() => {
             dice1El.innerText = diceEmojis[Math.floor(Math.random() * 6) + 1];
@@ -141,16 +141,14 @@
             // Hiệu ứng hiện kết quả
             resultBox.style.display = 'block';
 
-            // Tự động đóng web app sau 2 giây
-            setTimeout(() => {
-               // Gửi kết quả về cho Bot Telegram
+            // 1. Gửi kết quả về cho Bot Telegram
             tg.sendData(JSON.stringify({
                 total: total,
                 result: result,
                 d1: d1, d2: d2, d3: d3
             }));
 
-            // Tự động đóng web app sau 2 giây
+            // 2. Đợi 2 giây cho người chơi xem kết quả rồi tự động đóng Web App
             setTimeout(() => {
                 tg.close();
             }, 2000);
