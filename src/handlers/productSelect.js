@@ -7,11 +7,11 @@ const { Markup } = require('telegraf');
 
 module.exports = (bot) => {
     // 1. Xử lý chọn sản phẩm (Giữ nguyên)
-    bot.action(/^product_(\d+)$/, (ctx) => {
+    bot.action(/^product_(\d+)$/, async (ctx) => {
         const productId = parseInt(ctx.match[1]);
-        const product = productService.getById(productId);
+        const product = await productService.getById(productId); // Thêm await
         if (!product) return ctx.answerCbQuery('❌ Sản phẩm không tồn tại');
-        ctx.answerCbQuery();
+        await ctx.answerCbQuery();
 
         if (product.contact_only) {
             const buttons = [];
@@ -33,9 +33,9 @@ module.exports = (bot) => {
     // ═══════════════════════════════════════
 
     // 2. Khi bấm nút TÀI hoặc XỈU
-    bot.action(/^bet_(tai|xiu)$/, (ctx) => {
+    bot.action(/^bet_(tai|xiu)$/, async (ctx) => {
         const choice = ctx.match[1]; // 'tai' hoặc 'xiu'
-        ctx.answerCbQuery();
+        await ctx.answerCbQuery();
         
         // Lưu lựa chọn vào session để tí nữa dùng
         ctx.session = ctx.session || {};
@@ -71,10 +71,12 @@ module.exports = (bot) => {
             return ctx.reply('❌ Số tiền không hợp lệ. Vui lòng nhập lại (Ví dụ: 10000).');
         }
 
-        // Lấy thông tin user
-        const user = userService.get(ctx.from.id);
-        if (!user || user.balance < amount) {
-            return ctx.reply(`❌ Số dư của bạn không đủ. Số dư hiện tại: ${formatPrice(user ? user.balance : 0)}`);
+        // Lấy thông tin user (Phải await)
+        const user = await userService.get(ctx.from.id);
+        const userBalance = Number(user ? user.balance : 0); // Ép kiểu số
+
+        if (!user || userBalance < amount) {
+            return ctx.reply(`❌ Số dư của bạn không đủ. Số dư hiện tại: ${formatPrice(userBalance)}`);
         }
 
         const choice = ctx.session.betChoice;
@@ -103,15 +105,18 @@ module.exports = (bot) => {
 
         // 6. XỬ LÝ THẮNG / THUA
         
-        // BƯỚC A: LUÔN TRỪ TIỀN CƯỢC TRƯỚC
-        userService.deductBalance(ctx.from.id, amount);
+        // BƯỚC A: LUÔN TRỪ TIỀN CƯỢC TRƯỚC (Phải await)
+        await userService.deductBalance(ctx.from.id, amount);
 
         if (choice === result) {
-            // THẮNG: Cộng lại tiền gốc + tiền lời
+            // THẮNG: Cộng lại tiền gốc + tiền lời (Phải await)
             const winnings = amount; // Tiền lời
-            userService.addBalance(ctx.from.id, amount + winnings); 
+            await userService.addBalance(ctx.from.id, amount + winnings); 
             
-            const newBalance = userService.get(ctx.from.id).balance;
+            // Lấy lại user để lấy số dư mới (Phải await)
+            const updatedUser = await userService.get(ctx.from.id);
+            const newBalance = Number(updatedUser.balance);
+            
             await ctx.replyWithHTML(
                 diceMsg +
                 `\n🎉 <b>CHÚC MỪNG! BẠN ĐÃ THẮNG</b>\n` +
@@ -132,7 +137,8 @@ module.exports = (bot) => {
 
         } else {
             // THUA: Đã bị trừ ở Bước A
-            const newBalance = userService.get(ctx.from.id).balance;
+            const updatedUser = await userService.get(ctx.from.id);
+            const newBalance = Number(updatedUser.balance);
             
             await ctx.replyWithHTML(
                 diceMsg +
