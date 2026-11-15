@@ -23,8 +23,7 @@ const messages = {
         `💰 Số dư: <b>${formatPrice(user.balance)}</b>\n` +
         `📅 Tham gia: ${user.created_at}`,
 
-    productHeader:
-        '👇 👇 👇  Chọn sản phẩm bạn muốn mua bên dưới:',
+    productHeader: '🎲 Vui lòng đặt cược TÀI hoặc XỈU bên dưới:',
 
     selectQuantity: (product) =>
         `📦 <b>${product.name}</b>\n` +
