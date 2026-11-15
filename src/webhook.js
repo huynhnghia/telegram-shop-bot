@@ -5,10 +5,10 @@ const orderService = require('./services/orderService');
 const userService = require('./services/userService');
 const { formatPrice } = require('./utils/keyboard');
 
-// Hàm trích xuất mã thanh toán (Đã nâng cấp để chống lỗi ngân hàng xóa dấu cách)
+// Hàm trích xuất mã thanh toán (Siêu bền, chống mọi lỗi ngân hàng)
 function extractPaymentSuffix(content) {
     if (!content) return null;
-    // Chuyển in hoa và xóa mọi ký tự không phải chữ/số
+    // Chuyển in hoa, xóa mọi ký tự không phải chữ/số
     const cleanContent = content.toUpperCase().replace(/[^A-Z0-9]/g, '');
     // Tìm chữ PAY và 6 ký tự theo sau
     const match = cleanContent.match(/PAY([A-Z0-9]{6})/);
@@ -76,22 +76,27 @@ function setupWebhook(bot) {
                     return;
                 }
 
-                const { deliverOrder } = require('./handlers/paymentConfirm');
-                const result = await deliverOrder(bot, order.id);
+                // Gọi hàm giao hàng an toàn (đã bọc try/catch riêng)
+                try {
+                    const { deliverOrder } = require('./handlers/paymentConfirm');
+                    const result = await deliverOrder(bot, order.id);
 
-                if (!result.success) {
-                    orderService.markPaid(order.id);
-                    try {
-                        await bot.telegram.sendMessage(
-                            config.ADMIN_ID,
-                            `💳 Đơn #${order.id} đã thanh toán qua SePay nhưng KHÔNG đủ hàng để giao tự động.\n` +
-                            `Vui lòng /confirm ${order.id} và giao thủ công.`
-                        );
-                    } catch (err) {
-                        console.error('Không gửi được thông báo cho admin:', err.message);
+                    if (!result.success) {
+                        orderService.markPaid(order.id);
+                        try {
+                            await bot.telegram.sendMessage(
+                                config.ADMIN_ID,
+                                `💳 Đơn #${order.id} đã thanh toán qua SePay nhưng KHÔNG đủ hàng để giao tự động.\n` +
+                                `Vui lòng /confirm ${order.id} và giao thủ công.`
+                            );
+                        } catch (err) {
+                            console.error('Không gửi được thông báo cho admin:', err.message);
+                        }
                     }
+                    console.log(`✅ Order #${order.id} đã được xác nhận thanh toán qua SePay`);
+                } catch (orderError) {
+                    console.error('❌ Lỗi khi giao hàng:', orderError.message);
                 }
-                console.log(`✅ Order #${order.id} đã được xác nhận thanh toán qua SePay`);
                 return;
             }
 
@@ -117,9 +122,7 @@ function setupWebhook(bot) {
 
     app.get('/ping', (req, res) => res.json({ ok: true }));
 
-    // ═══════════════════════════════════════════════════════
-    // SỬA LỖI TẠI ĐÂY: Dùng process.env.PORT và bind 0.0.0.0
-    // ═══════════════════════════════════════════════════════
+    // Sửa lỗi Port cho Render
     const PORT = process.env.PORT || config.WEBHOOK_PORT || 3000;
     
     app.listen(PORT, '0.0.0.0', () => {
