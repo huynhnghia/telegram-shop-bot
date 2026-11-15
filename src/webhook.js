@@ -29,13 +29,13 @@ function setupWebhook(bot) {
             if (!suffix) return console.warn('⚠️ Không tìm thấy mã thanh toán:', content);
 
             // 1. Xử lý NẠP TIỀN (Topup)
-            const topup = topupService.getPendingBySuffix(suffix);
+            const topup = await topupService.getPendingBySuffix(suffix);
             console.log('👉 Kết quả tìm Topup trong DB:', topup);
             if (topup) {
                 if (amount < topup.amount) return console.warn('⚠️ Nạp thiếu tiền');
-                userService.addBalance(topup.telegram_id, topup.amount);
-                topupService.markPaid(topup.id);
-                const user = userService.get(topup.telegram_id);
+                await userService.addBalance(topup.telegram_id, topup.amount);
+                await topupService.markPaid(topup.id);
+                const user = await userService.get(topup.telegram_id);
                 await bot.telegram.sendMessage(
                     topup.telegram_id,
                     `✅ <b>NẠP TIỀN THÀNH CÔNG</b>\n\n💰 Đã cộng: <b>${formatPrice(topup.amount)}</b>\n💳 Số dư: <b>${formatPrice(user.balance)}</b>`,
@@ -45,7 +45,7 @@ function setupWebhook(bot) {
             }
 
             // 2. Xử lý MUA HÀNG (Order)
-            const order = orderService.getPendingBySuffix(suffix);
+            const order = await orderService.getPendingBySuffix(suffix);
             console.log('👉 Kết quả tìm Order:', order);
             if (order) {
                 if (amount < order.total_price) return console.warn('⚠️ Chuyển thiếu tiền so với giá đơn');
