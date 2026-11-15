@@ -1,13 +1,12 @@
 const productService = require('../services/productService');
 const messages = require('../utils/messages');
-const { quantityKeyboard } = require('../utils/keyboard');
+const { quantityKeyboard, productListKeyboard, formatPrice } = require('../utils/keyboard');
 const config = require('../config');
 const userService = require('../services/userService');
 const { Markup } = require('telegraf');
-const { formatPrice } = require('../utils/keyboard');
 
 module.exports = (bot) => {
-    // Handle product selection (Giữ nguyên logic cũ của bạn nếu cần)
+    // 1. Xử lý chọn sản phẩm (Giữ nguyên)
     bot.action(/^product_(\d+)$/, (ctx) => {
         const productId = parseInt(ctx.match[1]);
         const product = productService.getById(productId);
@@ -33,7 +32,7 @@ module.exports = (bot) => {
     // XỬ LÝ TÀI XỈU
     // ═══════════════════════════════════════
 
-    // 1. Khi bấm nút TÀI hoặc XỈU
+    // 2. Khi bấm nút TÀI hoặc XỈU
     bot.action(/^bet_(tai|xiu)$/, (ctx) => {
         const choice = ctx.match[1]; // 'tai' hoặc 'xiu'
         ctx.answerCbQuery();
@@ -50,14 +49,16 @@ module.exports = (bot) => {
             `Gõ /cancel để hủy.`
         );
     });
-// Hủy đặt cược
+
+    // 3. Hủy đặt cược
     bot.command('cancel', (ctx) => {
         if (ctx.session && ctx.session.betChoice) {
             ctx.session.betChoice = null;
             return ctx.reply('❌ Đã hủy đặt cược.');
         }
     });
-    // 2. Bắt sự kiện người chơi nhập số tiền (Text)
+
+    // 4. Bắt sự kiện người chơi nhập số tiền (Text)
     bot.on('text', async (ctx, next) => {
         // Chỉ xử lý nếu người dùng đang trong trạng thái chờ nhập tiền cược
         if (!ctx.session || !ctx.session.betChoice) return next();
@@ -82,7 +83,7 @@ module.exports = (bot) => {
         // Xóa session để tránh bị lặp lại
         ctx.session.betChoice = null;
 
-        // 3. MÔ PHỎNG ĐỔ 3 VIÊN XÚC XẮC
+        // 5. MÔ PHỎNG ĐỔ 3 VIÊN XÚC XẮC
         const dice1 = Math.floor(Math.random() * 6) + 1;
         const dice2 = Math.floor(Math.random() * 6) + 1;
         const dice3 = Math.floor(Math.random() * 6) + 1;
@@ -100,11 +101,15 @@ module.exports = (bot) => {
             `🔢 Tổng điểm: <b>${total}</b> => <b>${resultName}</b>\n\n` +
             `Bạn đã cược: <b>${choiceName}</b> (${formatPrice(amount)})\n`;
 
-        // 4. XỬ LÝ THẮNG / THUA
+        // 6. XỬ LÝ THẮNG / THUA (ĐÃ SỬA LỖI TRỪ TIỀN)
+        
+        // BƯỚC A: LUÔN TRỪ TIỀN CƯỢC TRƯỚC
+        userService.deductBalance(ctx.from.id, amount);
+
         if (choice === result) {
-            // THẮNG: Cộng tiền (Ví dụ: ăn gấp đôi số tiền cược, tức là cộng thêm 1 lần số tiền nữa)
-            const winnings = amount; // Tiền lời (nếu bạn muốn ăn 1:1). Nếu ăn 1:2 thì sửa thành amount * 2
-            userService.addBalance(ctx.from.id, amount + winnings); // Cộng lại tiền gốc + tiền thắng
+            // THẮNG: Cộng lại tiền gốc + tiền lời
+            const winnings = amount; // Tiền lời
+            userService.addBalance(ctx.from.id, amount + winnings); 
             
             const newBalance = userService.get(ctx.from.id).balance;
             await ctx.replyWithHTML(
@@ -114,8 +119,7 @@ module.exports = (bot) => {
                 `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
             );
         } else {
-            // THUA: Trừ tiền
-            userService.deductBalance(ctx.from.id, amount);
+            // THUA: Đã bị trừ ở Bước A, chỉ báo kết quả
             const newBalance = userService.get(ctx.from.id).balance;
             
             await ctx.replyWithHTML(
@@ -127,7 +131,6 @@ module.exports = (bot) => {
         }
 
         // Gửi lại menu chơi
-        const { productListKeyboard } = require('../utils/keyboard');
         ctx.reply('Chơi tiếp?', productListKeyboard([]));
     });
 };
