@@ -4,6 +4,11 @@ const userService = require('../services/userService');
 const { formatPrice } = require('../utils/keyboard');
 
 module.exports = (bot) => {
+    bot.command('checkdb', (ctx) => {
+        const topupService = require('../services/topupService');
+        const pending = topupService.getAllPending();
+        ctx.reply(`Có ${pending.length} đơn nạp đang chờ. Chi tiết: ${JSON.stringify(pending)}`);
+    });
     bot.command('nap', async (ctx) => {
         try {
             const text = ctx.message.text.split(' ');
