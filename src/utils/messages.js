@@ -6,7 +6,7 @@ const SHOP = config.SHOP_NAME;
 const messages = {
     welcome: (name) =>
         `👋 Chào mừng <b>${name}</b> đến với <b>${SHOP}</b>!\n\n` +
-        `🛒 Chuyên cung cấp tài khoản Premium giá rẻ\n\n` +
+        `🎲 Chơi Tài Xỉu, Với Bot Nhà Cái\n\n` +
         `📋 <b>Danh sách lệnh:</b>\n` +
         `/start — 🔄 Bắt đầu / Khởi động lại\n` +
         `/menu — 👤 Thông tin tài khoản\n` +
