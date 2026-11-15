@@ -82,66 +82,49 @@ module.exports = (bot) => {
         ctx.session.betChoice = null;
 
         // ═══════════════════════════════════════
-        // 5. HIỆU ỨNG ĐỔ XÚC XẮC (SỬA LỖI TELEGRAM CHẶN)
+        // 5. HIỆU ỨNG ĐỔ 3 VIÊN XÚC XẮC ĐỘNG (CÓ DELAY)
         // ═══════════════════════════════════════
+        await ctx.replyWithHTML('🎲 <b>Đang lắc xúc xắc...</b>');
+
+        // Gửi viên 1
+        const dice1Msg = await ctx.replyWithDice();
+        const dice1 = dice1Msg.dice.value;
         
-        const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-        
-        // Hàm tạo chuỗi hiển thị 3 viên xúc xắc
-        const getDiceString = (v1, v2, v3) => {
-            return `<b>Đang lắc xúc xắc...</b>\n\n${diceEmojis[v1]}  ${diceEmojis[v2]}  ${diceEmojis[v3]}`;
-        };
+        // Đợi 0.8 giây để Telegram không chặn
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-        // Gửi tin nhắn bắt đầu lắc
-        const msg = await ctx.replyWithHTML(getDiceString(1, 1, 1));
+        // Gửi viên 2
+        const dice2Msg = await ctx.replyWithDice();
+        const dice2 = dice2Msg.dice.value;
 
-        // Tạo hiệu ứng lắc trong 2 giây (4 lần cập nhật, mỗi lần 500ms)
-        for (let i = 0; i < 4; i++) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const r1 = Math.floor(Math.random() * 6) + 1;
-            const r2 = Math.floor(Math.random() * 6) + 1;
-            const r3 = Math.floor(Math.random() * 6) + 1;
-            try {
-                await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, getDiceString(r1, r2, r3), { parse_mode: 'HTML' });
-            } catch (e) {
-                // Bỏ qua lỗi nếu Telegram từ chối cập nhật quá nhanh
-            }
-        }
+        // Đợi 0.8 giây
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-        // Đợi thêm 0.5s rồi chốt kết quả
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Gửi viên 3
+        const dice3Msg = await ctx.replyWithDice();
+        const dice3 = dice3Msg.dice.value;
 
-        // Kết quả cuối cùng
-        const dice1 = Math.floor(Math.random() * 6) + 1;
-        const dice2 = Math.floor(Math.random() * 6) + 1;
-        const dice3 = Math.floor(Math.random() * 6) + 1;
+        // Đợi 1 giây để xúc xắc 3 dừng hẳn
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         const total = dice1 + dice2 + dice3;
-
         const result = total >= 11 ? 'tai' : 'xiu';
         const resultName = result === 'tai' ? 'TÀI' : 'XỈU';
 
-        const finalMsg = 
+        const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+        const diceMsg = 
             `🎲 <b>KẾT QUẢ LẮC XÚC XẮC</b> 🎲\n\n` +
             `${diceEmojis[dice1]}  ${diceEmojis[dice2]}  ${diceEmojis[dice3]}\n\n` +
             `🔢 Tổng điểm: <b>${total}</b> => <b>${resultName}</b>\n\n` +
             `Bạn đã cược: <b>${choiceName}</b> (${formatPrice(amount)})\n`;
 
-        // Cập nhật tin nhắn lần cuối với kết quả thật
-        try {
-            await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, finalMsg, { parse_mode: 'HTML' });
-        } catch (e) {
-            await ctx.replyWithHTML(finalMsg);
-        }
-
         // ═══════════════════════════════════════
         // 6. XỬ LÝ THẮNG / THUA
         // ═══════════════════════════════════════
         
-        // BƯỚC A: LUÔN TRỪ TIỀN CƯỢC TRƯỚC
         await userService.deductBalance(ctx.from.id, amount);
 
         if (choice === result) {
-            // THẮNG
             const winnings = amount;
             await userService.addBalance(ctx.from.id, amount + winnings); 
             
@@ -149,12 +132,12 @@ module.exports = (bot) => {
             const newBalance = Number(updatedUser.balance);
             
             await ctx.replyWithHTML(
+                diceMsg +
                 `\n🎉 <b>CHÚC MỪNG! BẠN ĐÃ THẮNG</b>\n` +
                 `💰 Tiền thắng: <b>+${formatPrice(winnings)}</b>\n` +
                 `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
             );
 
-            // Gửi thông báo Admin
             try {
                 const adminMsg = 
                     `🎉 <b>NGƯỜI CHƠI THẮNG</b>\n\n` +
@@ -166,17 +149,16 @@ module.exports = (bot) => {
             } catch (e) { console.error('Lỗi gửi Admin:', e.message); }
 
         } else {
-            // THUA
             const updatedUser = await userService.get(ctx.from.id);
             const newBalance = Number(updatedUser.balance);
             
             await ctx.replyWithHTML(
+                diceMsg +
                 `\n😢 <b>RẤT TIẾC! BẠN ĐÃ THUA</b>\n` +
                 `💸 Tiền mất: <b>-${formatPrice(amount)}</b>\n` +
                 `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
             );
 
-            // Gửi thông báo Admin
             try {
                 const adminMsg = 
                     `😢 <b>NGƯỜI CHƠI THUA</b>\n\n` +
