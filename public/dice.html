@@ -55,6 +55,11 @@
             display: none;
             text-align: center;
             width: 80%;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
     </style>
 </head>
@@ -84,7 +89,7 @@
         const resultBox = document.getElementById('resultBox');
         const resultText = document.getElementById('resultText');
 
-        // Lấy tham số truyền vào từ URL (ví dụ: kết quả ép thua)
+        // Lấy tham số truyền vào từ URL (kết quả đã được bot ép sẵn)
         const urlParams = new URLSearchParams(window.location.search);
         const forcedTotal = parseInt(urlParams.get('force'));
 
@@ -96,11 +101,11 @@
             dice3El.innerText = diceEmojis[Math.floor(Math.random() * 6) + 1];
             
             rollCount++;
-            if (rollCount > 10) { // Sau khoảng 2 giây (10 * 200ms)
+            if (rollCount > 15) { // Lắc khoảng 2.5 giây
                 clearInterval(rollInterval);
                 finishRoll();
             }
-        }, 200);
+        }, 150);
 
         function finishRoll() {
             dice1El.classList.remove('rolling');
@@ -132,14 +137,9 @@
             
             statusEl.innerText = `Tổng: ${total} điểm`;
             resultText.innerText = total >= 11 ? 'TÀI' : 'XỈU';
+            
+            // Hiệu ứng hiện kết quả
             resultBox.style.display = 'block';
-
-            // Gửi kết quả về cho Bot Telegram
-            tg.sendData(JSON.stringify({
-                total: total,
-                result: result,
-                d1: d1, d2: d2, d3: d3
-            }));
 
             // Tự động đóng web app sau 2 giây
             setTimeout(() => {
