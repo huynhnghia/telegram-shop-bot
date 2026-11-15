@@ -50,7 +50,13 @@ module.exports = (bot) => {
             `Gõ /cancel để hủy.`
         );
     });
-
+// Hủy đặt cược
+    bot.command('cancel', (ctx) => {
+        if (ctx.session && ctx.session.betChoice) {
+            ctx.session.betChoice = null;
+            return ctx.reply('❌ Đã hủy đặt cược.');
+        }
+    });
     // 2. Bắt sự kiện người chơi nhập số tiền (Text)
     bot.on('text', async (ctx, next) => {
         // Chỉ xử lý nếu người dùng đang trong trạng thái chờ nhập tiền cược
