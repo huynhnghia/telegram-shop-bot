@@ -103,7 +103,10 @@ module.exports = (bot) => {
                 return ctx.reply('❌ Không tìm thấy thông tin cược. Vui lòng chơi lại.', Markup.removeKeyboard());
             }
 
-            const data = JSON.parse(ctx.webAppData.data);
+            // SỬA LỖI TẠI ĐÂY: Kiểm tra nếu là string thì parse, nếu là object thì dùng luôn
+            const rawData = ctx.webAppData.data;
+            const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+            
             const amount = Number(ctx.session.finalAmount);
             const choice = ctx.session.finalChoice;
 
