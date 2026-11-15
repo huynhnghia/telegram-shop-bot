@@ -143,6 +143,15 @@
 
             // Tự động đóng web app sau 2 giây
             setTimeout(() => {
+               // Gửi kết quả về cho Bot Telegram
+            tg.sendData(JSON.stringify({
+                total: total,
+                result: result,
+                d1: d1, d2: d2, d3: d3
+            }));
+
+            // Tự động đóng web app sau 2 giây
+            setTimeout(() => {
                 tg.close();
             }, 2000);
         }
