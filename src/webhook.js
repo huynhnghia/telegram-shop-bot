@@ -15,7 +15,8 @@ function extractPaymentSuffix(content) {
 function setupWebhook(bot) {
     const app = express();
     app.use(express.json());
-
+const app = express();
+app.use(express.static('public')); // <-- Thêm dòng này để host thư mục public
     async function processTransaction(data) {
         try {
             console.log('📩 SePay transaction:', JSON.stringify(data));
