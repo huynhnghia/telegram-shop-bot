@@ -27,7 +27,7 @@ module.exports = (bot) => {
             // 2. Tạo thông tin thanh toán (Mã QR, Nội dung CK)
             const payment = paymentService.generatePayment(amount);
             
-            // 3. Lưu đơn nạp tiền vào Database để Webhook đối soát
+            // 3. LƯU ĐƠN NẠP TIỀN VÀO DATABASE (Đây là dòng quan trọng nhất bị thiếu)
             topupService.create(ctx.from.id, amount, payment.paymentCode);
 
             // 4. Nội dung tin nhắn
