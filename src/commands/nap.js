@@ -1,49 +1,46 @@
-const db = require('../database');
+const paymentService = require('../services/paymentService');
+const topupService = require('../services/topupService');
+const userService = require('../services/userService');
+const { formatPrice } = require('../utils/keyboard');
 
-const topupService = {
-    create(telegramId, amount, paymentCode) {
-        const result = db.prepare(`
-      INSERT INTO topups (telegram_id, amount, payment_code, status)
-      VALUES (?, ?, ?, 'pending')
-    `).run(telegramId, amount, paymentCode);
+module.exports = (bot) => {
+    // Lệnh kiểm tra Database
+    bot.command('checkdb', (ctx) => {
+        const pending = topupService.getAllPending();
+        if (pending.length === 0) {
+            return ctx.reply('Database trống! Không có đơn nạp nào đang chờ.');
+        }
+        ctx.reply(`Có ${pending.length} đơn nạp đang chờ:\n${JSON.stringify(pending, null, 2)}`);
+    });
 
-        return this.getById(result.lastInsertRowid);
-    },
+    // Lệnh nạp tiền
+    bot.command('nap', async (ctx) => {
+        try {
+            const text = ctx.message.text.split(' ');
+            if (text.length < 2 || isNaN(text[1])) {
+                return ctx.replyWithHTML('💰 Cách dùng: /nap [số tiền]\nVí dụ: /nap 10000');
+            }
 
-    getById(id) {
-        return db.prepare('SELECT * FROM topups WHERE id = ?').get(id);
-    },
+            const amount = parseInt(text[1]);
+            if (amount < 10000) return ctx.reply('❌ Số tiền tối thiểu là 10.000đ');
 
-    getByCode(code) {
-        return db.prepare('SELECT * FROM topups WHERE payment_code = ?').get(code);
-    },
+            userService.findOrCreate(ctx.from);
+            const payment = paymentService.generatePayment(amount);
+            
+            // LƯU VÀO DATABASE
+            topupService.create(ctx.from.id, amount, payment.paymentCode);
 
-    getPendingBySuffix(suffix) {
-        return db.prepare(`
-      SELECT * FROM topups
-      WHERE status = 'pending' AND payment_code LIKE ?
-      ORDER BY created_at DESC
-      LIMIT 1
-    `).get(`%${suffix}%`);
-    },
+            const caption =
+                `💰 <b>NẠP SỐ DƯ</b>\n\n` +
+                `👉 <a href="${payment.qrUrl}">BẤM VÀO ĐÂY ĐỂ LẤY MÃ QR</a>\n\n` +
+                `🏦 Số tiền: <b>${formatPrice(amount)}</b>\n` +
+                `└ Nội dung CK: <code>${payment.paymentCode}</code>\n\n` +
+                `⏳ Hệ thống sẽ tự động cộng tiền sau khi nhận được thanh toán.`;
 
-    markPaid(id) {
-        db.prepare(`
-      UPDATE topups SET status = 'paid', paid_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(id);
-    },
-
-    getRecentByUser(telegramId, limit = 5) {
-        return db.prepare(`
-      SELECT * FROM topups WHERE telegram_id = ? ORDER BY created_at DESC LIMIT ?
-    `).all(telegramId, limit);
-    },
-
-    // Hàm kiểm tra (Đã thêm dấu phẩy chuẩn)
-    getAllPending() {
-        return db.prepare("SELECT * FROM topups WHERE status = 'pending'").all();
-    },
+            await ctx.replyWithHTML(caption);
+        } catch (err) {
+            console.error('❌ Lỗi tạo nạp tiền:', err.message);
+            ctx.reply(`❌ Lỗi: ${err.message}`); 
+        }
+    });
 };
-
-module.exports = topupService;
