@@ -1,53 +1,60 @@
-const db = require('../database');
+const { db } = require('../database');
 
 const userService = {
-    /**
-     * Find or create user
-     */
-    findOrCreate(telegramUser) {
-        const existing = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramUser.id);
-        if (existing) return existing;
+    async findOrCreate(telegramUser) {
+        const existingResult = await db.execute({
+            sql: 'SELECT * FROM users WHERE telegram_id = ?',
+            args: [telegramUser.id]
+        });
+        if (existingResult.rows.length > 0) return existingResult.rows[0];
 
         const fullName = [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' ');
-        db.prepare(
-            'INSERT INTO users (telegram_id, username, full_name) VALUES (?, ?, ?)'
-        ).run(telegramUser.id, telegramUser.username || null, fullName);
+        await db.execute({
+            sql: 'INSERT INTO users (telegram_id, username, full_name) VALUES (?, ?, ?)',
+            args: [telegramUser.id, telegramUser.username || null, fullName]
+        });
 
-        return db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramUser.id);
+        const newUserResult = await db.execute({
+            sql: 'SELECT * FROM users WHERE telegram_id = ?',
+            args: [telegramUser.id]
+        });
+        return newUserResult.rows[0];
     },
 
-    /**
-     * Get user by telegram ID
-     */
-    get(telegramId) {
-        return db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramId);
+    async get(telegramId) {
+        const result = await db.execute({
+            sql: 'SELECT * FROM users WHERE telegram_id = ?',
+            args: [telegramId]
+        });
+        return result.rows[0];
     },
 
-    // THÊM HÀM NÀY ĐỂ LỆNH /setbalance HOẠT ĐỘNG
-    getUser(telegramId) {
+    async getUser(telegramId) {
         return this.get(telegramId);
     },
 
-    /**
-     * Update balance (Cộng tiền)
-     */
-    addBalance(telegramId, amount) {
-        db.prepare('UPDATE users SET balance = balance + ? WHERE telegram_id = ?').run(amount, telegramId);
+    async addBalance(telegramId, amount) {
+        await db.execute({
+            sql: 'UPDATE users SET balance = balance + ? WHERE telegram_id = ?',
+            args: [amount, telegramId]
+        });
     },
 
-    /**
-     * Deduct balance (Trừ tiền)
-     */
-    deductBalance(telegramId, amount) {
-        const user = this.get(telegramId);
+    async deductBalance(telegramId, amount) {
+        const user = await this.get(telegramId);
         if (!user || user.balance < amount) return false;
-        db.prepare('UPDATE users SET balance = balance - ? WHERE telegram_id = ?').run(amount, telegramId);
+        await db.execute({
+            sql: 'UPDATE users SET balance = balance - ? WHERE telegram_id = ?',
+            args: [amount, telegramId]
+        });
         return true;
     },
 
-    // THÊM HÀM NÀY ĐỂ LỆNH /setbalance HOẠT ĐỘNG
-    updateBalance(telegramId, newBalance) {
-        db.prepare('UPDATE users SET balance = ? WHERE telegram_id = ?').run(newBalance, telegramId);
+    async updateBalance(telegramId, newBalance) {
+        await db.execute({
+            sql: 'UPDATE users SET balance = ? WHERE telegram_id = ?',
+            args: [newBalance, telegramId]
+        });
     }
 };
 
