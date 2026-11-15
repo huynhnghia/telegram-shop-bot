@@ -5,7 +5,7 @@ const config = require('../config');
 const { Markup } = require('telegraf');
 
 module.exports = (bot) => {
-    // Handle product selection
+    // Xử lý khi chọn sản phẩm (giữ nguyên logic cũ của bạn)
     bot.action(/^product_(\d+)$/, (ctx) => {
         const productId = parseInt(ctx.match[1]);
         const product = productService.getById(productId);
@@ -49,6 +49,28 @@ module.exports = (bot) => {
         ctx.replyWithHTML(
             messages.selectQuantity(product),
             quantityKeyboard(productId, maxQty)
+        );
+    });
+
+    // ═══════════════════════════════════════
+    // XỬ LÝ NÚT TÀI / XỈU (MỚI THÊM)
+    // ═══════════════════════════════════════
+
+    // Xử lý khi bấm nút TÀI
+    bot.action('bet_tai', (ctx) => {
+        ctx.answerCbQuery('Bạn đã chọn TÀI!');
+        ctx.replyWithHTML(
+            `🔴 Bạn đã chọn cược <b>TÀI</b>.\n\n` +
+            `⏳ Vui lòng chờ kết quả từ Admin...`
+        );
+    });
+
+    // Xử lý khi bấm nút XỈU
+    bot.action('bet_xiu', (ctx) => {
+        ctx.answerCbQuery('Bạn đã chọn XỈU!');
+        ctx.replyWithHTML(
+            `🔵 Bạn đã chọn cược <b>XỈU</b>.\n\n` +
+            `⏳ Vui lòng chờ kết quả từ Admin...`
         );
     });
 };
