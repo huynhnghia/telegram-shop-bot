@@ -14,9 +14,13 @@ function extractPaymentSuffix(content) {
 
 function setupWebhook(bot) {
     const app = express();
+    
+    // Cấu hình để server đọc được các file tĩnh trong thư mục 'public'
+    app.use(express.static('public'));
+    
+    // Cấu hình để đọc dữ liệu JSON từ SePay
     app.use(express.json());
-const app = express();
-app.use(express.static('public')); // <-- Thêm dòng này để host thư mục public
+
     async function processTransaction(data) {
         try {
             console.log('📩 SePay transaction:', JSON.stringify(data));
@@ -72,6 +76,7 @@ app.use(express.static('public')); // <-- Thêm dòng này để host thư mục
     });
 
     app.get('/ping', (req, res) => res.json({ ok: true }));
+    
     const PORT = process.env.PORT || config.WEBHOOK_PORT || 3000;
     app.listen(PORT, '0.0.0.0', () => console.log(`🌐 Webhook server đang chạy tại port ${PORT}`));
 }
