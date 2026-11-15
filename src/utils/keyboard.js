@@ -4,23 +4,15 @@ const { Markup } = require('telegraf');
  * Build product list keyboard
  */
 function productListKeyboard(products) {
-    const buttons = products.map((p) => {
-        const stock = p.display_stock || p.stock_count;
-        let label = `${p.emoji} ${p.name} - ${formatPrice(p.price)}`;
+    // Tạo nút Tài và Xỉu
+    const buttons = [
+        [
+            Markup.button.callback('🔴 TÀI', 'bet_tai'),
+            Markup.button.callback('🔵 XỈU', 'bet_xiu')
+        ]
+    ];
 
-        if (p.contact_only && stock === 0) {
-            label += ` — 📬 Liên hệ`;
-        } else {
-            label += ` (Còn: ${stock})`;
-        }
-
-        if (p.promotion) {
-            label += ` ${p.promotion}`;
-        }
-
-        return [Markup.button.callback(label, `product_${p.id}`)];
-    });
-
+    // Vẫn giữ nút làm mới
     buttons.push([Markup.button.callback('🔄 Làm mới', 'refresh_products')]);
 
     return Markup.inlineKeyboard(buttons);
