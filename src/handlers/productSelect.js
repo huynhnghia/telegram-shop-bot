@@ -111,7 +111,8 @@ module.exports = (bot) => {
         // ═══════════════════════════════════════
         const webAppUrl = `https://telegram-shop-bot-696z.onrender.com/dice.html?force=${finalTotal}`;
 
-        await ctx.replyWithHTML(
+        // Lưu lại tin nhắn chứa nút bấm để tí nữa xóa nút
+        const betMessage = await ctx.replyWithHTML(
             `🎲 <b>Đã nhận cược ${formatPrice(amount)}</b>\n\n` +
             `Bấm nút bên dưới để xem kết quả!`,
             Markup.inlineKeyboard([
@@ -133,6 +134,18 @@ module.exports = (bot) => {
                 delete ctx.session.finalTotal;
                 delete ctx.session.amount;
                 delete ctx.session.choice;
+
+                // XÓA NÚT BẤM TRÊN TIN NHẮN CŨ
+                try {
+                    await ctx.telegram.editMessageReplyMarkup(
+                        ctx.chat.id,
+                        betMessage.message_id,
+                        undefined,
+                        Markup.inlineKeyboard([]) // Xóa sạch các nút
+                    );
+                } catch (e) {
+                    console.error('Lỗi xóa nút:', e.message);
+                }
 
                 const resultName = total >= 11 ? 'TÀI' : 'XỈU';
                 const choiceName = betChoice === 'tai' ? 'TÀI' : 'XỈU';
