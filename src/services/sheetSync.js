@@ -1,6 +1,6 @@
 const https = require('https');
 const http = require('http');
-const db = require('../database');
+const { db } = require('../database');
 const config = require('../config');
 
 // Sync interval in minutes
@@ -47,7 +47,6 @@ function fetchSheetCSV(sheetId) {
 
 /**
  * Parse CSV string into rows
- * Handles quoted fields with commas
  */
 function parseCSV(csv) {
     const lines = csv.split('\n').filter((l) => l.trim());
@@ -86,79 +85,67 @@ function parseCSV(csv) {
  */
 function parsePrice(priceStr) {
     if (!priceStr) return 0;
-    // Remove đ, VND, dots, spaces
     const cleaned = priceStr.replace(/[đĐdD\s.VND]/gi, '').trim();
     return parseInt(cleaned) || 0;
 }
 
 /**
- * Sync Google Sheet data to database
- * Sheet columns: A=ID, B=Sản phẩm, C=Giá bán, D=Đơn vị tính, E=Số lượng trong kho, F=Tình trạng còn hàng, G=Liên hệ đặt hàng, H=Ghi chú
+ * Sync Google Sheet data to database (Turso version)
  */
-function syncToDatabase(rows) {
-    // Skip header row
+async function syncToDatabase(rows) {
     const dataRows = rows.slice(1).filter((r) => r.length >= 3 && r[0] && r[1]);
 
     let updated = 0;
     let added = 0;
 
-    const getProduct = db.prepare('SELECT * FROM products WHERE id = ?');
-    const updateProduct = db.prepare(`
-    UPDATE products SET name = ?, price = ?, description = ?, is_active = ?,
-      contact_only = ?, contact_url = ?, sheet_stock = ?, promotion = ?
-    WHERE id = ?
-  `);
-    const insertProduct = db.prepare(`
-    INSERT OR REPLACE INTO products (id, category_id, name, price, emoji, description,
-      contact_only, contact_url, sheet_stock, promotion, is_active)
-    VALUES (?, 1, ?, ?, '📦', ?, ?, ?, ?, ?, ?)
-  `);
+    for (const row of dataRows) {
+        const id = parseInt(row[0]);
+        const name = row[1] || '';
+        const price = parsePrice(row[2]);
+        const unit = row[3] || '';
+        const sheetStock = parseInt(row[4]) || 0;
+        const inStock = row[5] ? (row[5].toUpperCase() === 'TRUE' || row[5] === '✓' || row[5] === '☑') : false;
+        const contactUrl = (row[6] || '').trim() || null;
+        const notes = row[7] || '';
 
-    // Count real stock (from stock table) per product
-    const getRealStock = db.prepare(
-        'SELECT COUNT(*) as c FROM stock WHERE product_id = ? AND is_sold = 0'
-    );
+        if (!name || !id) continue;
 
-    const syncAll = db.transaction(() => {
-        for (const row of dataRows) {
-            const id = parseInt(row[0]);
-            const name = row[1] || '';
-            const price = parsePrice(row[2]);
-            const unit = row[3] || '';
-            const sheetStock = parseInt(row[4]) || 0;
-            const inStock = row[5] ? (row[5].toUpperCase() === 'TRUE' || row[5] === '✓' || row[5] === '☑') : false;
-            const contactUrl = (row[6] || '').trim() || null;
-            const notes = row[7] || '';
+        const desc = [unit, notes].filter(Boolean).join(' | ');
 
-            if (!name || !id) continue;
+        // Đếm số lượng hàng thực tế trong kho
+        const stockRes = await db.execute({
+            sql: 'SELECT COUNT(*) as c FROM stock WHERE product_id = ? AND is_sold = 0',
+            args: [id]
+        });
+        const hasRealStock = stockRes.rows[0].c > 0;
+        const contactOnly = (!hasRealStock && sheetStock === 0) ? 1 : 0;
+        const promotion = notes || null;
 
-            // Build description from unit + notes
-            const desc = [unit, notes].filter(Boolean).join(' | ');
+        // Kiểm tra sản phẩm đã tồn tại chưa
+        const productRes = await db.execute({
+            sql: 'SELECT * FROM products WHERE id = ?',
+            args: [id]
+        });
+        const existing = productRes.rows[0];
 
-            // Determine contact_only: no sheet stock AND no real stock = contact-only
-            const realStock = getRealStock.get(id);
-            const hasRealStock = realStock && realStock.c > 0;
-            const contactOnly = (!hasRealStock && sheetStock === 0) ? 1 : 0;
-
-            // Use notes as promotion if it looks like a promo
-            const promotion = notes || null;
-
-            // Check if product exists
-            const existing = getProduct.get(id);
-
-            if (existing) {
-                updateProduct.run(name, price, desc, inStock ? 1 : 0,
-                    contactOnly, contactUrl, sheetStock, promotion, id);
-                updated++;
-            } else {
-                insertProduct.run(id, name, price, desc,
-                    contactOnly, contactUrl, sheetStock, promotion, inStock ? 1 : 0);
-                added++;
-            }
+        if (existing) {
+            await db.execute({
+                sql: `UPDATE products SET name = ?, price = ?, description = ?, is_active = ?,
+                      contact_only = ?, contact_url = ?, sheet_stock = ?, promotion = ?
+                      WHERE id = ?`,
+                args: [name, price, desc, inStock ? 1 : 0, contactOnly, contactUrl, sheetStock, promotion, id]
+            });
+            updated++;
+        } else {
+            await db.execute({
+                sql: `INSERT INTO products (id, category_id, name, price, emoji, description,
+                      contact_only, contact_url, sheet_stock, promotion, is_active)
+                      VALUES (?, 1, ?, ?, '📦', ?, ?, ?, ?, ?, ?)`,
+                args: [id, name, price, desc, contactOnly, contactUrl, sheetStock, promotion, inStock ? 1 : 0]
+            });
+            added++;
         }
-    });
-
-    syncAll();
+    }
 
     return { updated, added, total: dataRows.length };
 }
@@ -177,7 +164,7 @@ async function syncFromSheet() {
         console.log('🔄 Syncing from Google Sheet...');
         const csv = await fetchSheetCSV(sheetId);
         const rows = parseCSV(csv);
-        const result = syncToDatabase(rows);
+        const result = await syncToDatabase(rows);
         console.log(`✅ Sheet sync done: ${result.updated} updated, ${result.added} added (${result.total} total)`);
         return result;
     } catch (err) {
@@ -198,10 +185,7 @@ function startAutoSync() {
 
     console.log(`📊 Google Sheet auto-sync enabled (every ${SYNC_INTERVAL} min)`);
 
-    // Initial sync after 5 seconds
     setTimeout(() => syncFromSheet(), 5000);
-
-    // Then sync every N minutes
     setInterval(() => syncFromSheet(), SYNC_INTERVAL * 60 * 1000);
 }
 
