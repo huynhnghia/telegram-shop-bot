@@ -47,5 +47,7 @@ const topupService = {
     `).all(telegramId, limit);
     },
 };
-
+getAllPending() {
+        return db.prepare("SELECT * FROM topups WHERE status = 'pending'").all();
+    },
 module.exports = topupService;
