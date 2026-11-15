@@ -3,7 +3,7 @@ const messages = require('../utils/messages');
 const { productListKeyboard } = require('../utils/keyboard');
 
 module.exports = (bot) => {
-    bot.command('product', (ctx) => {
+    bot.command('batdau', (ctx) => {
         sendProductList(ctx);
     });
 
