@@ -101,7 +101,7 @@ module.exports = (bot) => {
             `🔢 Tổng điểm: <b>${total}</b> => <b>${resultName}</b>\n\n` +
             `Bạn đã cược: <b>${choiceName}</b> (${formatPrice(amount)})\n`;
 
-        // 6. XỬ LÝ THẮNG / THUA (ĐÃ SỬA LỖI TRỪ TIỀN)
+        // 6. XỬ LÝ THẮNG / THUA
         
         // BƯỚC A: LUÔN TRỪ TIỀN CƯỢC TRƯỚC
         userService.deductBalance(ctx.from.id, amount);
@@ -118,8 +118,20 @@ module.exports = (bot) => {
                 `💰 Tiền thắng: <b>+${formatPrice(winnings)}</b>\n` +
                 `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
             );
+
+            // GỬI THÔNG BÁO CHO ADMIN (THẮNG)
+            try {
+                const adminMsg = 
+                    `🎉 <b>NGƯỜI CHƠI THẮNG</b>\n\n` +
+                    `👤 Khách: <b>${ctx.from.first_name}</b> (<code>${ctx.from.id}</code>)\n` +
+                    `🎲 Cược: <b>${choiceName}</b> | Kết quả: <b>${resultName}</b> (${total} điểm)\n` +
+                    `💰 Tiền cược: <b>${formatPrice(amount)}</b>\n` +
+                    `💵 Số dư mới: <b>${formatPrice(newBalance)}</b>`;
+                await bot.telegram.sendMessage(config.ADMIN_ID, adminMsg, { parse_mode: 'HTML' });
+            } catch (e) { console.error('Lỗi gửi Admin:', e.message); }
+
         } else {
-            // THUA: Đã bị trừ ở Bước A, chỉ báo kết quả
+            // THUA: Đã bị trừ ở Bước A
             const newBalance = userService.get(ctx.from.id).balance;
             
             await ctx.replyWithHTML(
@@ -128,6 +140,17 @@ module.exports = (bot) => {
                 `💸 Tiền mất: <b>-${formatPrice(amount)}</b>\n` +
                 `💳 Số dư mới: <b>${formatPrice(newBalance)}</b>`
             );
+
+            // GỬI THÔNG BÁO CHO ADMIN (THUA)
+            try {
+                const adminMsg = 
+                    `😢 <b>NGƯỜI CHƠI THUA</b>\n\n` +
+                    `👤 Khách: <b>${ctx.from.first_name}</b> (<code>${ctx.from.id}</code>)\n` +
+                    `🎲 Cược: <b>${choiceName}</b> | Kết quả: <b>${resultName}</b> (${total} điểm)\n` +
+                    `💸 Tiền mất: <b>${formatPrice(amount)}</b>\n` +
+                    `💵 Số dư mới: <b>${formatPrice(newBalance)}</b>`;
+                await bot.telegram.sendMessage(config.ADMIN_ID, adminMsg, { parse_mode: 'HTML' });
+            } catch (e) { console.error('Lỗi gửi Admin:', e.message); }
         }
 
         // Gửi lại menu chơi
