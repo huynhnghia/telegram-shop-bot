@@ -10,7 +10,7 @@ const messages = {
         `📋 <b>Danh sách lệnh:</b>\n` +
         `/start — 🔄 Bắt đầu / Khởi động lại\n` +
         `/menu — 👤 Thông tin tài khoản\n` +
-        `/product — 📦 Danh sách sản phẩm\n` +
+        `/batdau — 🎲 Chơi tài xỉu\n` +
         `/nap — 💰 Nạp số dư\n` +
         `/checkpay — 🔍 Kiểm tra thanh toán\n` +
         `/support — 🆘 Hỗ trợ\n` +
