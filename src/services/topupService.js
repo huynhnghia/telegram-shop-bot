@@ -1,58 +1,47 @@
-const db = require('../database');
+const { db } = require('../database');
 
 const topupService = {
-    create(telegramId, amount, paymentCode) {
-        const result = db.prepare(`
-      INSERT INTO topups (telegram_id, amount, payment_code, status)
-      VALUES (?, ?, ?, 'pending')
-    `).run(telegramId, amount, paymentCode);
-
-        return this.getById(result.lastInsertRowid);
+    async create(telegramId, amount, paymentCode) {
+        const result = await db.execute({
+            sql: `INSERT INTO topups (telegram_id, amount, payment_code, status) VALUES (?, ?, ?, 'pending')`,
+            args: [telegramId, amount, paymentCode]
+        });
+        return await this.getById(result.lastInsertRowid);
     },
 
-    getById(id) {
-        return db.prepare('SELECT * FROM topups WHERE id = ?').get(id);
+    async getById(id) {
+        const result = await db.execute({
+            sql: 'SELECT * FROM topups WHERE id = ?',
+            args: [id]
+        });
+        return result.rows[0];
     },
 
-    getByCode(code) {
-        return db.prepare('SELECT * FROM topups WHERE payment_code = ?').get(code);
-    },
-
-    // HÀM TÌM KIẾM MỚI: Bỏ qua mọi dấu cách, gạch ngang, và cả lỗi gõ nhầm 0/O
-    getPendingBySuffix(suffix) {
-        const allPending = db.prepare("SELECT * FROM topups WHERE status = 'pending'").all();
+    async getPendingBySuffix(suffix) {
+        const result = await db.execute("SELECT * FROM topups WHERE status = 'pending'");
+        const allPending = result.rows;
         
         for (const topup of allPending) {
-            // Xóa mọi ký tự đặc biệt trong mã lưu ở DB
             const cleanDbCode = topup.payment_code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-            
-            // Xóa mọi ký tự đặc biệt trong mã SePay gửi sang
             const cleanSuffix = suffix.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-            
-            // So sánh: Nếu mã DB chứa mã SePay gửi sang là khớp
             if (cleanDbCode.includes(cleanSuffix)) {
                 return topup;
             }
         }
-        return undefined;
+        return null;
     },
 
-    markPaid(id) {
-        db.prepare(`
-      UPDATE topups SET status = 'paid', paid_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(id);
+    async markPaid(id) {
+        await db.execute({
+            sql: `UPDATE topups SET status = 'paid', paid_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            args: [id]
+        });
     },
 
-    getRecentByUser(telegramId, limit = 5) {
-        return db.prepare(`
-      SELECT * FROM topups WHERE telegram_id = ? ORDER BY created_at DESC LIMIT ?
-    `).all(telegramId, limit);
-    },
-
-    getAllPending() {
-        return db.prepare("SELECT * FROM topups WHERE status = 'pending'").all();
-    },
+    async getAllPending() {
+        const result = await db.execute("SELECT * FROM topups WHERE status = 'pending'");
+        return result.rows;
+    }
 };
 
 module.exports = topupService;
