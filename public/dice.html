@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lắc Xúc Xắc</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            background-color: #17212b; /* Màu nền tối giống Telegram */
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .dice-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .dice {
+            width: 80px;
+            height: 80px;
+            background-color: white;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            color: black;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+        }
+        .rolling {
+            animation: shake 0.2s infinite;
+        }
+        @keyframes shake {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(15deg) scale(1.1); }
+            50% { transform: rotate(-15deg) scale(1.1); }
+            75% { transform: rotate(10deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        h2 { margin-top: 20px; }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background-color: #2b5278;
+            display: none;
+            text-align: center;
+            width: 80%;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 id="status">Đang lắc...</h2>
+    
+    <div class="dice-container">
+        <div class="dice rolling" id="dice1">⚀</div>
+        <div class="dice rolling" id="dice2">⚀</div>
+        <div class="dice rolling" id="dice3">⚀</div>
+    </div>
+
+    <div class="result-box" id="resultBox">
+        <h2 id="resultText"></h2>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Mở rộng web app toàn màn hình
+
+        const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+        const dice1El = document.getElementById('dice1');
+        const dice2El = document.getElementById('dice2');
+        const dice3El = document.getElementById('dice3');
+        const statusEl = document.getElementById('status');
+        const resultBox = document.getElementById('resultBox');
+        const resultText = document.getElementById('resultText');
+
+        // Lấy tham số truyền vào từ URL (ví dụ: kết quả ép thua)
+        const urlParams = new URLSearchParams(window.location.search);
+        const forcedTotal = parseInt(urlParams.get('force'));
+
+        // Hiệu ứng lắc trong 2 giây
+        let rollCount = 0;
+        const rollInterval = setInterval(() => {
+            dice1El.innerText = diceEmojis[Math.floor(Math.random() * 6) + 1];
+            dice2El.innerText = diceEmojis[Math.floor(Math.random() * 6) + 1];
+            dice3El.innerText = diceEmojis[Math.floor(Math.random() * 6) + 1];
+            
+            rollCount++;
+            if (rollCount > 10) { // Sau khoảng 2 giây (10 * 200ms)
+                clearInterval(rollInterval);
+                finishRoll();
+            }
+        }, 200);
+
+        function finishRoll() {
+            dice1El.classList.remove('rolling');
+            dice2El.classList.remove('rolling');
+            dice3El.classList.remove('rolling');
+
+            let d1, d2, d3;
+            
+            if (!isNaN(forcedTotal)) {
+                // Nếu có ép kết quả, tạo 3 con số khớp với tổng điểm đó
+                do {
+                    d1 = Math.floor(Math.random() * 6) + 1;
+                    d2 = Math.floor(Math.random() * 6) + 1;
+                    d3 = Math.floor(Math.random() * 6) + 1;
+                } while (d1 + d2 + d3 !== forcedTotal);
+            } else {
+                // Nếu không ép, random bình thường
+                d1 = Math.floor(Math.random() * 6) + 1;
+                d2 = Math.floor(Math.random() * 6) + 1;
+                d3 = Math.floor(Math.random() * 6) + 1;
+            }
+
+            dice1El.innerText = diceEmojis[d1];
+            dice2El.innerText = diceEmojis[d2];
+            dice3El.innerText = diceEmojis[d3];
+
+            const total = d1 + d2 + d3;
+            const result = total >= 11 ? 'tai' : 'xiu';
+            
+            statusEl.innerText = `Tổng: ${total} điểm`;
+            resultText.innerText = total >= 11 ? 'TÀI' : 'XỈU';
+            resultBox.style.display = 'block';
+
+            // Gửi kết quả về cho Bot Telegram
+            tg.sendData(JSON.stringify({
+                total: total,
+                result: result,
+                d1: d1, d2: d2, d3: d3
+            }));
+
+            // Tự động đóng web app sau 2 giây
+            setTimeout(() => {
+                tg.close();
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
