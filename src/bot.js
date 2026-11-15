@@ -1,5 +1,6 @@
 const { Telegraf, session } = require('telegraf');
 const config = require('./config');
+const { initDatabase } = require('./database'); // Import hàm khởi tạo Database
 
 const bot = new Telegraf(config.BOT_TOKEN || 'invalid-token');
 
@@ -19,7 +20,7 @@ bot.catch((err, ctx) => {
 // Register commands
 require('./commands/start')(bot);
 require('./commands/menu')(bot);
-require('./commands/product')(bot); // Vẫn gọi file này, nhưng bên trong sẽ đổi tên lệnh
+require('./commands/product')(bot);
 require('./commands/nap')(bot);
 require('./commands/checkpay')(bot);
 require('./commands/support')(bot);
@@ -43,21 +44,28 @@ if (!config.BOT_TOKEN || config.BOT_TOKEN === 'your_bot_token_here') {
     bot.telegram.setMyCommands([
         { command: 'start', description: '🔄 Bắt đầu / Khởi động lại' },
         { command: 'menu', description: '👤 Thông tin tài khoản' },
-        { command: 'batdau', description: '🎲 Chơi tài xỉu' }, // <-- Đã đổi thành batdau
+        { command: 'batdau', description: '🎲 Chơi tài xỉu' },
         { command: 'nap', description: '💰 Nạp số dư' },
         { command: 'checkpay', description: '🔍 Kiểm tra thanh toán' },
         { command: 'support', description: '🆘 Hỗ trợ' },
         { command: 'myid', description: '🆔 Lấy ID của bạn' },
     ]).catch((err) => console.error('⚠️  Không set được bot commands:', err.message));
 
-    bot.launch()
+    // KHỞI TẠO DATABASE TRƯỚC KHI LAUNCH BOT
+    initDatabase()
+        .then(() => {
+            console.log('✅ Đã kết nối Database Turso thành công!');
+            
+            // Sau khi khởi tạo DB xong mới chạy bot
+            return bot.launch();
+        })
         .then(() => {
             console.log(`🤖 ${config.SHOP_NAME} Bot đã khởi động!`);
             const { startAutoSync } = require('./services/sheetSync');
             startAutoSync();
         })
         .catch((err) => {
-            console.error('❌ Không thể khởi động Telegram polling:', err.message);
+            console.error('❌ Không thể khởi động Bot:', err.message);
         });
 }
 
