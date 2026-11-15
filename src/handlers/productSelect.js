@@ -9,7 +9,7 @@ module.exports = (bot) => {
     // 1. Xử lý chọn sản phẩm (Giữ nguyên)
     bot.action(/^product_(\d+)$/, async (ctx) => {
         const productId = parseInt(ctx.match[1]);
-        const product = await productService.getById(productId); // Thêm await
+        const product = await productService.getById(productId);
         if (!product) return ctx.answerCbQuery('❌ Sản phẩm không tồn tại');
         await ctx.answerCbQuery();
 
@@ -85,17 +85,28 @@ module.exports = (bot) => {
         // Xóa session để tránh bị lặp lại
         ctx.session.betChoice = null;
 
-        // 5. MÔ PHỎNG ĐỔ 3 VIÊN XÚC XẮC
-        const dice1 = Math.floor(Math.random() * 6) + 1;
-        const dice2 = Math.floor(Math.random() * 6) + 1;
-        const dice3 = Math.floor(Math.random() * 6) + 1;
+        // ═══════════════════════════════════════
+        // 5. HIỆU ỨNG ĐỔ XÚC XẮC ĐỘNG
+        // ═══════════════════════════════════════
+        await ctx.replyWithHTML('🎲 <b>Đang lắc xúc xắc...</b>');
+
+        // Gửi 3 viên xúc xắc động
+        const dice1Msg = await ctx.replyWithDice();
+        const dice2Msg = await ctx.replyWithDice();
+        const dice3Msg = await ctx.replyWithDice();
+
+        // Lấy giá trị thực tế của 3 viên xúc xắc vừa lắc
+        const dice1 = dice1Msg.dice.value;
+        const dice2 = dice2Msg.dice.value;
+        const dice3 = dice3Msg.dice.value;
+
         const total = dice1 + dice2 + dice3;
 
         // Quy tắc: Từ 11 đến 18 là TÀI, từ 3 đến 10 là XỈU
         const result = total >= 11 ? 'tai' : 'xiu';
         const resultName = result === 'tai' ? 'TÀI' : 'XỈU';
 
-        // Hiển thị kết quả tung xúc xắc
+        // Hiển thị kết quả bằng chữ
         const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
         const diceMsg = 
             `🎲 <b>KẾT QUẢ LẮC XÚC XẮC</b> 🎲\n\n` +
@@ -103,7 +114,9 @@ module.exports = (bot) => {
             `🔢 Tổng điểm: <b>${total}</b> => <b>${resultName}</b>\n\n` +
             `Bạn đã cược: <b>${choiceName}</b> (${formatPrice(amount)})\n`;
 
+        // ═══════════════════════════════════════
         // 6. XỬ LÝ THẮNG / THUA
+        // ═══════════════════════════════════════
         
         // BƯỚC A: LUÔN TRỪ TIỀN CƯỢC TRƯỚC (Phải await)
         await userService.deductBalance(ctx.from.id, amount);
