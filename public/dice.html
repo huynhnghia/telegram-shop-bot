@@ -7,7 +7,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
-            background-color: #17212b; /* Màu nền tối giống Telegram */
+            background-color: #17212b;
             color: white;
             font-family: sans-serif;
             display: flex;
@@ -79,7 +79,7 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Mở rộng web app toàn màn hình
+        tg.expand();
 
         const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
         const dice1El = document.getElementById('dice1');
@@ -89,11 +89,12 @@
         const resultBox = document.getElementById('resultBox');
         const resultText = document.getElementById('resultText');
 
-        // Lấy tham số truyền vào từ URL (nếu có ép kết quả)
+        // Lấy tham số từ URL do bot truyền sang
         const urlParams = new URLSearchParams(window.location.search);
         const forcedTotal = parseInt(urlParams.get('force'));
+        const amount = urlParams.get('amount'); // Lấy số tiền cược
+        const choice = urlParams.get('choice'); // Lấy lựa chọn (tai/xiu)
 
-        // Hiệu ứng lắc trong khoảng 2 giây
         let rollCount = 0;
         const rollInterval = setInterval(() => {
             dice1El.innerText = diceEmojis[Math.floor(Math.random() * 6) + 1];
@@ -101,7 +102,7 @@
             dice3El.innerText = diceEmojis[Math.floor(Math.random() * 6) + 1];
             
             rollCount++;
-            if (rollCount > 15) { // Lắc khoảng 2.5 giây
+            if (rollCount > 15) {
                 clearInterval(rollInterval);
                 finishRoll();
             }
@@ -115,14 +116,12 @@
             let d1, d2, d3;
             
             if (!isNaN(forcedTotal)) {
-                // Nếu có ép kết quả, tạo 3 con số khớp với tổng điểm đó
                 do {
                     d1 = Math.floor(Math.random() * 6) + 1;
                     d2 = Math.floor(Math.random() * 6) + 1;
                     d3 = Math.floor(Math.random() * 6) + 1;
                 } while (d1 + d2 + d3 !== forcedTotal);
             } else {
-                // Nếu không ép, random bình thường
                 d1 = Math.floor(Math.random() * 6) + 1;
                 d2 = Math.floor(Math.random() * 6) + 1;
                 d3 = Math.floor(Math.random() * 6) + 1;
@@ -138,17 +137,17 @@
             statusEl.innerText = `Tổng: ${total} điểm`;
             resultText.innerText = total >= 11 ? 'TÀI' : 'XỈU';
             
-            // Hiệu ứng hiện kết quả
             resultBox.style.display = 'block';
 
-            // 1. Gửi kết quả về cho Bot Telegram
+            // Gửi kèm amount và choice về cho bot
             tg.sendData(JSON.stringify({
                 total: total,
                 result: result,
-                d1: d1, d2: d2, d3: d3
+                d1: d1, d2: d2, d3: d3,
+                amount: amount, // Gửi số tiền cược
+                choice: choice  // Gửi lựa chọn
             }));
 
-            // 2. Đợi 2 giây cho người chơi xem kết quả rồi tự động đóng Web App
             setTimeout(() => {
                 tg.close();
             }, 2000);
