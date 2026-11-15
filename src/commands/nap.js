@@ -4,16 +4,18 @@ const userService = require('../services/userService');
 const { formatPrice } = require('../utils/keyboard');
 
 module.exports = (bot) => {
-    // Lệnh kiểm tra Database
-    bot.command('checkdb', (ctx) => {
-        const pending = topupService.getAllPending();
-        if (pending.length === 0) {
-            return ctx.reply('Database trống! Không có đơn nạp nào đang chờ.');
+    bot.command('checkdb', async (ctx) => {
+        try {
+            const pending = await topupService.getAllPending();
+            if (pending.length === 0) {
+                return ctx.reply('Database trống! Không có đơn nạp nào đang chờ.');
+            }
+            ctx.reply(`Có ${pending.length} đơn nạp đang chờ:\n${JSON.stringify(pending, null, 2)}`);
+        } catch (error) {
+            ctx.reply(`Lỗi kiểm tra DB: ${error.message}`);
         }
-        ctx.reply(`Có ${pending.length} đơn nạp đang chờ:\n${JSON.stringify(pending, null, 2)}`);
     });
 
-    // Lệnh nạp tiền
     bot.command('nap', async (ctx) => {
         try {
             const text = ctx.message.text.split(' ');
@@ -24,11 +26,13 @@ module.exports = (bot) => {
             const amount = parseInt(text[1]);
             if (amount < 10000) return ctx.reply('❌ Số tiền tối thiểu là 10.000đ');
 
-            userService.findOrCreate(ctx.from);
+            // QUAN TRỌNG: Thêm await vào hàm này
+            await userService.findOrCreate(ctx.from);
+            
             const payment = paymentService.generatePayment(amount);
             
-            // LƯU VÀO DATABASE
-            topupService.create(ctx.from.id, amount, payment.paymentCode);
+            // QUAN TRỌNG: Thêm await vào hàm này
+            await topupService.create(ctx.from.id, amount, payment.paymentCode);
 
             const caption =
                 `💰 <b>NẠP SỐ DƯ</b>\n\n` +
