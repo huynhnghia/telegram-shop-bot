@@ -20,7 +20,8 @@ module.exports = (bot) => {
             `👥 <b>QUẢN LÝ USER & SỐ DƯ:</b>\n` +
             `/users — Xem danh sách users\n` +
             `/setbalance [ID] [tiền] — Đặt lại số dư\n` +
-            `/addbalance [ID] [tiền] — Cộng/trừ số dư\n\n` +
+            `/addbalance [ID] [tiền] — Cộng/trừ số dư\n` +
+            `/max [tiền] — Giới hạn cược tối đa (0 = không giới hạn)\n\n` +
             `📢 <b>THÔNG BÁO:</b>\n` +
             `/broadcast — Gửi thông báo tới all users\n` +
             `/broadcast1 [ID] [nội dung] — Gửi thông báo 1 user`
@@ -83,7 +84,7 @@ module.exports = (bot) => {
             const user = await userService.getUser(userId);
             if (!user) return ctx.reply('❌ Không tìm thấy user này.');
             
-            const newBalance = user.balance + amount;
+            const newBalance = Number(user.balance) + amount;
             if (newBalance < 0) return ctx.reply(`❌ Số dư không đủ để trừ. Số dư hiện tại: ${formatPrice(user.balance)}`);
             
             await userService.updateBalance(userId, newBalance);
@@ -97,7 +98,49 @@ module.exports = (bot) => {
         }
     });
 
-    // 4. Lệnh /broadcast
+    // 4. Lệnh /max - Giới hạn số tiền cược
+    bot.command('max', adminOnly, async (ctx) => {
+        const args = ctx.message.text.split(' ');
+        
+        try {
+            // Nếu không nhập số, hiển thị giới hạn hiện tại
+            if (args.length < 2) {
+                const result = await db.execute("SELECT value FROM settings WHERE key = 'max_bet'");
+                const maxBet = result.rows.length > 0 ? result.rows[0].value : '0';
+                const displayMax = maxBet === '0' ? 'Không giới hạn' : formatPrice(maxBet);
+                
+                return ctx.replyWithHTML(
+                    `🎯 <b>GIỚI HẠN CƯỢC HIỆN TẠI</b>\n\n` +
+                    `💰 Mức tối đa: <b>${displayMax}</b>\n\n` +
+                    `✏️ Để thay đổi:\n<code>/max [số tiền]</code>\n` +
+                    `Ví dụ: <code>/max 100000</code> (giới hạn 100k)\n` +
+                    `Nhập <code>/max 0</code> để bỏ giới hạn.`
+                );
+            }
+
+            const maxAmount = parseInt(args[1]);
+            if (isNaN(maxAmount) || maxAmount < 0) {
+                return ctx.reply('❌ Số tiền không hợp lệ.');
+            }
+
+            // Lưu hoặc cập nhật vào bảng settings
+            await db.execute({
+                sql: `INSERT INTO settings (key, value) VALUES ('max_bet', ?) 
+                      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+                args: [maxAmount.toString()]
+            });
+
+            if (maxAmount === 0) {
+                ctx.replyWithHTML(`✅ <b>Đã BỎ giới hạn cược</b>\n\nNgười chơi có thể cược không giới hạn.`);
+            } else {
+                ctx.replyWithHTML(`✅ <b>ĐÃ CẬP NHẬT GIỚI HẠN CƯỢC</b>\n\n🎯 Số tiền cược tối đa: <b>${formatPrice(maxAmount)}</b>`);
+            }
+        } catch (error) {
+            ctx.reply(`❌ Lỗi: ${error.message}`);
+        }
+    });
+
+    // 5. Lệnh /broadcast
     bot.command('broadcast', adminOnly, async (ctx) => {
         const msg = ctx.message.text.replace('/broadcast', '').trim();
 
@@ -109,7 +152,7 @@ module.exports = (bot) => {
         await sendBroadcast(ctx, bot, msg);
     });
 
-    // 5. Lệnh /broadcast1
+    // 6. Lệnh /broadcast1
     bot.command('broadcast1', adminOnly, async (ctx) => {
         const args = ctx.message.text.split(' ');
         if (args.length < 3) return ctx.replyWithHTML(`📢 <b>GỬI THÔNG BÁO CÁ NHÂN</b>\n\nCách dùng: <code>/broadcast1 [user_id] [nội dung]</code>`);
