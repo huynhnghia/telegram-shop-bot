@@ -3,6 +3,7 @@ const messages = require('../utils/messages');
 const { quantityKeyboard, productListKeyboard, formatPrice } = require('../utils/keyboard');
 const config = require('../config');
 const userService = require('../services/userService');
+const { db } = require('../database'); // Import db từ Turso
 const { Markup } = require('telegraf');
 
 module.exports = (bot) => {
@@ -65,11 +66,27 @@ module.exports = (bot) => {
             return ctx.reply('❌ Số tiền không hợp lệ. Vui lòng nhập lại (Ví dụ: 10000).');
         }
 
+        // Lấy thông tin user
         const user = await userService.get(ctx.from.id);
         const userBalance = Number(user ? user.balance : 0);
 
         if (!user || userBalance < amount) {
             return ctx.reply(`❌ Số dư của bạn không đủ. Số dư hiện tại: ${formatPrice(userBalance)}`);
+        }
+
+        // ═══════════════════════════════════════
+        // KIỂM TRA GIỚI HẠN CƯỢC TỐI ĐA (/max)
+        // ═══════════════════════════════════════
+        try {
+            const result = await db.execute("SELECT value FROM settings WHERE key = 'max_bet'");
+            if (result.rows.length > 0) {
+                const maxBet = Number(result.rows[0].value);
+                if (maxBet > 0 && amount > maxBet) {
+                    return ctx.reply(`❌ Số tiền cược vượt quá giới hạn cho phép.\n🎯 Giới hạn tối đa: ${formatPrice(maxBet)}`);
+                }
+            }
+        } catch (error) {
+            console.error('Lỗi kiểm tra giới hạn cược:', error.message);
         }
 
         const choice = ctx.session.betChoice;
@@ -82,25 +99,18 @@ module.exports = (bot) => {
         // ═══════════════════════════════════════
         await ctx.replyWithHTML('🎲 <b>Đang lắc xúc xắc...</b>');
 
-        // Gửi sticker 1
         const dice1Msg = await ctx.replyWithDice();
         const dice1 = dice1Msg.dice.value;
-        // Đợi 0.6s để Telegram không chặn
         await new Promise(r => setTimeout(r, 600));
 
-        // Gửi sticker 2
         const dice2Msg = await ctx.replyWithDice();
         const dice2 = dice2Msg.dice.value;
         await new Promise(r => setTimeout(r, 600));
 
-        // Gửi sticker 3
         const dice3Msg = await ctx.replyWithDice();
         const dice3 = dice3Msg.dice.value;
-
-        // Đợi 1s để sticker 3 dừng hẳn
         await new Promise(r => setTimeout(r, 1000));
 
-        // Tính kết quả thật (không gian lận)
         const total = dice1 + dice2 + dice3;
         const result = total >= 11 ? 'tai' : 'xiu';
         const resultName = result === 'tai' ? 'TÀI' : 'XỈU';
